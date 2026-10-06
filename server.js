@@ -25,11 +25,11 @@ const str = (x, n) => typeof x === 'string' && x.length <= n;
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
-const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps']; // trainee-owned
-const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal'];                                                          // coach-owned
+const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia']; // trainee-owned
+const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif'];                                                          // coach-owned
 const checks = {
   water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
-  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000,
+  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12),
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
 };
@@ -253,6 +253,28 @@ app.post('/api/push/rest', wrap((req, res) => {
   res.json({ ok: true });
 }));
 app.post('/api/push/cancel', wrap((req, res) => { auth(req); clearTimeout(restTimers.get(req.user.id)); restTimers.delete(req.user.id); res.json({ ok: true }); }));
+
+// ---------- progress photos ----------
+db.exec("create table if not exists photos(id text primary key, user_id text not null, ts integer not null, data blob not null)");
+app.post('/api/photos', wrap((req, res) => {
+  auth(req, 'trainee');
+  const d = (req.body || {}).data;
+  if (typeof d !== 'string' || !d.startsWith('data:image/jpeg;base64,') || d.length > 650000) fail(400, 'תמונה לא תקינה');
+  const buf = Buffer.from(d.slice(23), 'base64');
+  if (buf.length < 200 || buf[0] !== 0xFF || buf[1] !== 0xD8) fail(400, 'תמונה לא תקינה');
+  const id = 'ph' + crypto.randomBytes(8).toString('hex');
+  db.prepare('insert into photos(id,user_id,ts,data) values(?,?,?,?)').run(id, req.user.id, Date.now(), buf);
+  const all = db.prepare('select id from photos where user_id=? order by ts').all(req.user.id);
+  all.slice(0, Math.max(0, all.length - 120)).forEach(r => db.prepare('delete from photos where id=?').run(r.id));
+  res.json({ id });
+}));
+app.get('/api/photos/:id', wrap((req, res) => {
+  auth(req);
+  const r = db.prepare('select user_id,data from photos where id=?').get(req.params.id);
+  if (!r || (req.user.role !== 'coach' && r.user_id !== req.user.id)) fail(404, 'לא נמצא');
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+  res.send(r.data);
+}));
 app.get('/api/export', wrap((req, res) => {
   auth(req, 'coach');
   res.set('Content-Disposition', 'attachment; filename="dorfit-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
