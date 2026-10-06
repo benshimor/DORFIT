@@ -1,9 +1,9 @@
 process.env.DB_PATH='/tmp/e2e.db';process.env.COACH_PASS='coachpass1';require('fs').rmSync('/tmp/e2e.db',{force:true});
 const {JSDOM}=require('jsdom');
-const app=require('./server.js');const srv=app.listen(3222);
+const app=require('../server.js');const srv=app.listen(3222);
 const mk=()=>{let cookie='';const f=async(u,o={})=>{const r=await fetch('http://localhost:3222'+u,{...o,headers:{...(o.headers||{}),cookie}});const sc=r.headers.get('set-cookie');if(sc)cookie=sc.split(';')[0].startsWith('sid=')&&sc.includes('Max-Age=0')?'':sc.split(';')[0];return r};
  return f};
-const html=require('fs').readFileSync('public/index.html','utf8').replace(/<link[^>]*>/g,'');
+const html=require('fs').readFileSync(__dirname+'/../public/index.html','utf8').replace(/<link[^>]*>/g,'');
 function client(){const f=mk();const d=new JSDOM(html,{runScripts:'dangerously',url:'http://localhost:3222/',pretendToBeVisual:true,beforeParse(w){w.fetch=f;w.addEventListener('error',e=>console.log('ERR',e.message));w.scrollTo=()=>{};w.confirm=()=>true;w.alert=()=>{}}});return d.window}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));const ok=(c,m)=>console.log(c?'PASS':'FAIL',m);
 (async()=>{

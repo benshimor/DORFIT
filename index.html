@@ -190,7 +190,7 @@ function login(){return `<div class="lgn"><div class="lgi"><div class="lgm">${lo
 <div class="err">${err}</div><button class="p" style="width:100%;padding:14px;font-size:16px" onclick="doLogin()">כניסה</button></div></div>`}
 function doLogin(){tryLogin(document.getElementById('u').value.trim(),document.getElementById('p').value)}
 const quick=(u,p)=>tryLogin(u,p);
-async function tryLogin(u,p){try{await api('POST','/api/login',{user:u,pass:p});applyState(await api('GET','/api/state'));err='';tab='home';ct='ov';sel=null;pm=null;lm=null;dtab='sum';cp=0;cd=null;fin=false;render()}catch(e){err=e.status===429?'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות':e.status===401?'שם משתמש או סיסמה שגויים':'אין חיבור לשרת';render()}}
+async function tryLogin(u,p){try{await api('POST','/api/login',{user:u,pass:p});applyState(await api('GET','/api/state'));err='';tab='home';ct='ov';sel=null;pm=null;lm=null;dtab='sum';cp=0;cd=null;fin=false;render()}catch(e){err=e.status===429?'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות':e.status===401?'שם משתמש או סיסמה שגויים':e.status?'השרת החזיר שגיאה (קוד '+e.status+'). בדוק את הלוגים בשרת':location.protocol==='file:'?'הקובץ נפתח מהמחשב ולא דרך כתובת השרת':'אין תקשורת עם השרת (כתובת או רשת)';render()}}
 async function out(){clearTimeout(syncT);try{await sync()}catch(e){}try{await api('POST','/api/logout')}catch(e){}S.me=null;S.users=[];S.progs=[];S.plans=[];tab='home';err='';cred=null;render()}
 
 /* ---------- trainee ---------- */
