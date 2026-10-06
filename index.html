@@ -144,7 +144,7 @@ const mkT=(name,user,pass)=>({id:user,name,user,pass,role:'t',status:'פעיל',
  weights:[['01.09',72.4],['08.09',72.0],['15.09',71.8],['22.09',71.9],['29.09',71.3]],checkin:null,
  coachNote:'שבוע טוב! נעלה משקל כשתעברי את הטווח העליון בכל הסטים.',block:{n:'היפרטרופיה',w:3,of:6},lastTrain:2});
 let S={me:null,users:[],progs:[],plans:[],exs:[]};const libJ=()=>JSON.stringify({progs:S.progs,plans:S.plans,exs:S.exs});
-const TF=['water','ms','hist','cur','act','last','log','pr','chk','weights','checkin','lastDone','daily','day','reqs'],CF=['name','user','status','goal','block','coachNote','progs','plan'];
+const TF=['water','ms','hist','cur','act','last','log','pr','chk','weights','checkin','lastDone','daily','day','reqs','steps'],CF=['name','user','status','goal','block','coachNote','progs','plan','sgoal'];
 let sent={},offline=false,dirty=false,syncT=null,syncing=false,cred=null;
 const pickF=(o,f)=>{const r={};f.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
 const isoToday=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -161,8 +161,8 @@ async function sync(){const u=me();if(!u)return;if(syncing){syncT=setTimeout(syn
   dirty=false;if(offline){offline=false;render()}}
  catch(e){if(e.auth){}else if(e.status){dirty=false;flash('שגיאה בשמירה: '+e.message,3500);try{await reload()}catch(x){}}else{offline=true;render();syncT=setTimeout(sync,5000)}}
  finally{syncing=false}}
-function rollDay(u){const t=isoToday();if(u.day===t)return;if(u.day){u.daily=u.daily||{};u.daily[u.day]={w:u.water||0,m:(u.ms||[]).filter(x=>x.v).length};const k=Object.keys(u.daily).sort();while(k.length>120)delete u.daily[k.shift()]}
- u.water=0;u.ms=(u.ms||[]).map(m=>({v:0,c:m.c||0}));u.checkin=null;u.day=t}
+function rollDay(u){const t=isoToday();if(u.day===t)return;if(u.day){u.daily=u.daily||{};u.daily[u.day]={w:u.water||0,m:(u.ms||[]).filter(x=>x.v).length,s:u.steps||0,hg:(u.checkin&&u.checkin.hunger)||0,sh:(u.checkin&&u.checkin.hrs)||0};const k=Object.keys(u.daily).sort();while(k.length>120)delete u.daily[k.shift()]}
+ u.water=0;u.steps=0;u.ms=(u.ms||[]).map(m=>({v:0,c:m.c||0}));u.checkin=null;u.day=t}
 function applyState(st){S.me=st.me;S.users=st.users;S.progs=st.progs;S.plans=st.plans;S.exs=st.exs||[];sent={};const u=me();if(!u)return;
  if(u.role==='t'){sent.me=JSON.stringify(pickF(u,TF));try{const p=JSON.parse(localStorage.getItem(pendKey(u))||'null');if(p)Object.assign(u,p)}catch(e){}rollDay(u);if(JSON.stringify(pickF(u,TF))!==sent.me)save()}
  else{sent.lib=libJ();S.users.filter(x=>x.role==='t').forEach(t=>{sent['u'+t.id]=JSON.stringify(pickF(t,CF))})}}
@@ -176,7 +176,7 @@ function merge(st){const u=me();if(!u)return false;let ch=false;const D=(a,b)=>J
 async function poll(){if(!S.me||document.hidden||syncing||dirty)return;try{const st=await api('GET','/api/state');if(merge(st)){const a=document.activeElement;if(!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)))render()}}catch(e){}}
 setInterval(poll,30000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll()});
 setInterval(()=>{const u=me();if(u&&u.role==='t'&&u.day&&u.day!==isoToday()){rollDay(u);save();render()}},60000);
-async function boot(){try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});applyState(await api('GET','/api/state'));if(me()&&me().role==='c')ct='ov'}catch(e){}render()}
+async function boot(){try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});applyState(await api('GET','/api/state'));if(me()&&me().role==='c')ct='ov';pushSync()}catch(e){}render()}
 const lastTrain=u=>u.last?Math.floor((Date.now()-u.last.date)/864e5):(u.created?Math.floor((Date.now()-u.created)/864e5):0);
 let tab='home',ct='tr',sel=null,pm=null,lm=null,rest=0,tick=null,err='',cp=0,cd=null,open=null,fin=false,dtab='sum',calM=null,calV='m',calSel=null,pe=0,pd=0,toast='';
 const me=()=>S.users.find(u=>u.id===S.me),U=id=>S.users.find(x=>x.id===id);
@@ -191,17 +191,34 @@ function groups(d){let g=-1,out=[];d.ex.forEach((e,i)=>{if(!(e.ss&&i>0))g++;out.
 const getLog=(u,did,e)=>{u.cur[did]=u.cur[did]||{};return u.cur[did][e.id]||(u.cur[did][e.id]={sets:Array.from({length:num(e.sets)||3},()=>({w:'',r:'',x:'',d:0})),note:''})};
 const volOf=u=>{let t=0;Object.values(u.cur).forEach(d=>Object.values(d).forEach(l=>l.sets.forEach(s=>{if(s.d&&!s.wu)t+=num(s.w)*num(s.r)})));return t};
 function ed(path,v){const k=path.split('.');let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];o[k[k.length-1]]=v;save()}
-function startRest(sec,name){rest=sec||90;restTotal=rest;restName=name||'';clearInterval(tick);tick=setInterval(()=>{rest--;if(rest<=0){clearInterval(tick);rest=0;beep();flash('המנוחה הסתיימה ✓ סט הבא');return}const a=document.getElementById('rt'),b=document.getElementById('rf');if(a)a.textContent=fmtT(rest);if(b)b.style.width=(rest/restTotal*100)+'%'},1000);render()}
+let restEnd=0;
+function startRest(sec,name){rest=sec||90;restTotal=rest;restEnd=Date.now()+rest*1000;restName=name||'';clearInterval(tick);pushRest(rest,restName);tick=setInterval(()=>{rest=Math.max(0,Math.ceil((restEnd-Date.now())/1000));if(rest<=0){clearInterval(tick);rest=0;beep();flash('המנוחה הסתיימה ✓ סט הבא');return}const a=document.getElementById('rt'),b=document.getElementById('rf');if(a)a.textContent=fmtT(rest);if(b)b.style.width=(rest/restTotal*100)+'%'},1000);render()}
 function chart(ws){if(!ws.length)return '<span class="mut">אין שקילות עדיין</span>';const v=ws.map(x=>x[1]),mn=Math.min(...v)-.5,mx=Math.max(...v)+.5,W=300,H=110;
  const X=i=>10+i*(W-20)/Math.max(1,v.length-1),Y=x=>H-8-(x-mn)/(mx-mn)*(H-16);
  const ma=v.map((_,i)=>{const a=v.slice(Math.max(0,i-2),i+1);return a.reduce((s,x)=>s+x,0)/a.length}),P=a=>a.map((x,i)=>X(i)+','+Y(x)).join(' ');
  return `<svg viewBox="0 0 ${W} ${H}" width="100%"><polyline points="${P(v)}" fill="none" stroke="var(--line)" stroke-width="2"/>${v.map((x,i)=>`<circle cx="${X(i)}" cy="${Y(x)}" r="3" fill="var(--mut)"/>`).join('')}<polyline points="${P(ma)}" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linejoin="round"/></svg><div class="mut"><span style="color:var(--acc)">━</span> ממוצע נע · ● שקילה</div>`}
 function ring(p,txt,sub,c){const C=2*Math.PI*29;return `<div><div class="ring"><svg width="68" height="68"><circle cx="34" cy="34" r="29" fill="none" stroke="var(--s2)" stroke-width="6"/><circle cx="34" cy="34" r="29" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-Math.min(1,p))}"/></svg><b>${txt}</b></div><div class="mut">${sub}</div></div>`}
 function notes(u){const a=[];Object.values(u.cur).forEach(d=>Object.entries(d).forEach(([id,l])=>{if(l.note)a.push([id,l.note])}));return a}
+
+/* ---------- push notifications ---------- */
+const pushOK=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const pushOn=()=>{try{return pushOK()&&Notification.permission==='granted'&&localStorage.getItem('dfPush')==='1'}catch(e){return false}};
+const b64u=s=>{const p='='.repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,ch=>ch.charCodeAt(0))};
+const isIOS=()=>/iP(hone|ad|od)/.test(navigator.userAgent),isStandalone=()=>window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+async function enablePush(){try{if(!pushOK())return flash('הדפדפן לא תומך בהתראות');const perm=await Notification.requestPermission();if(perm!=='granted')return flash('ההתראות נחסמו. אפשר לאשר אותן בהגדרות הדפדפן');
+ const k=(await api('GET','/api/push/key')).key;if(!k)return flash('התראות לא זמינות בשרת');const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(k)});
+ await api('POST','/api/push/sub',{sub:sub.toJSON()});try{localStorage.setItem('dfPush','1')}catch(e){}flash('ההתראות הופעלו ✓')}catch(e){flash('לא הצלחנו להפעיל התראות')}render()}
+async function disablePush(){try{const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();if(sub){await api('POST','/api/push/unsub',{endpoint:sub.endpoint});await sub.unsubscribe()}}catch(e){}try{localStorage.removeItem('dfPush')}catch(e){}render()}
+async function pushSync(){try{if(!pushOn())return;const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();if(sub)await api('POST','/api/push/sub',{sub:sub.toJSON()})}catch(e){}}
+const pushRest=(s,n)=>{if(pushOn())api('POST','/api/push/rest',{secs:s,name:n||''}).catch(()=>{})};
+const pushCancel=()=>{if(pushOn())api('POST','/api/push/cancel',{}).catch(()=>{})};
+function addRest(n){rest+=n;restTotal+=n;restEnd+=n*1000;pushRest(rest,restName);render()}
+function skipRest(){rest=0;clearInterval(tick);pushCancel();render()}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&rest>0){rest=Math.max(0,Math.ceil((restEnd-Date.now())/1000));if(rest<=0){clearInterval(tick);rest=0}render()}});
 function exName(id){for(const p of S.progs)for(const d of p.days)for(const e of d.ex){if(e.id===id)return e.n;const a=(e.alts||[]).find(x=>x.id===id);if(a)return a.n}return ''}
 function alerts(u){const a=[];if(lastTrain(u)>=5)a.push(['bad','לא התאמן '+lastTrain(u)+' ימים']);
  notes(u).forEach(([id,n])=>{if(/כאב|קשה/.test(n))a.push(['bad','דיווח כאב: '+exName(id)])});
- if(u.checkin&&(u.checkin.sleep<=2||u.checkin.energy<=2))a.push(['warn','שינה/אנרגיה נמוכות']);
+ if(u.checkin&&(u.checkin.sleep<=2||u.checkin.energy<=2))a.push(['warn','שינה/אנרגיה נמוכות']);if(u.checkin&&u.checkin.hrs&&u.checkin.hrs<5)a.push(['warn','פחות מ-5 שעות שינה']);if(u.checkin&&u.checkin.hunger>=8)a.push(['warn','רעב גבוה אתמול ('+u.checkin.hunger+'/10)']);
  if(u.water<u.goal*.3)a.push(['warn','שתייה נמוכה היום']);if(u.last&&u.last.rpe>=9)a.push(['warn','קושי גבוה באימון האחרון']);if(u.last&&/כאב/.test(u.last.note||''))a.push(['bad','כאב שדווח בסיכום אימון']);return a}
 
 /* ---------- login ---------- */
@@ -214,8 +231,8 @@ function login(){return `<div class="lgn"><div class="lgi"><div class="lgm">${lo
 function togPw(){const u=document.getElementById('u').value,p=document.getElementById('p').value;showPw=!showPw;render();document.getElementById('u').value=u;const e=document.getElementById('p');e.value=p;e.focus()}
 function doLogin(){tryLogin(document.getElementById('u').value.trim(),document.getElementById('p').value)}
 const quick=(u,p)=>tryLogin(u,p);
-async function tryLogin(u,p){try{await api('POST','/api/login',{user:u,pass:p});applyState(await api('GET','/api/state'));err='';tab='home';ct='ov';sel=null;pm=null;lm=null;dtab='sum';cp=0;cd=null;fin=false;render()}catch(e){err=e.status===429?'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות':e.status===401?'שם משתמש או סיסמה שגויים':e.status?'השרת החזיר שגיאה (קוד '+e.status+'). בדוק את הלוגים בשרת':location.protocol==='file:'?'הקובץ נפתח מהמחשב ולא דרך כתובת השרת':'אין תקשורת עם השרת (כתובת או רשת)';render()}}
-async function out(){clearTimeout(syncT);try{await sync()}catch(e){}try{await api('POST','/api/logout')}catch(e){}S.me=null;S.users=[];S.progs=[];S.plans=[];S.exs=[];tab='home';err='';cred=null;render()}
+async function tryLogin(u,p){try{await api('POST','/api/login',{user:u,pass:p});applyState(await api('GET','/api/state'));pushSync();err='';tab='home';ct='ov';sel=null;pm=null;lm=null;dtab='sum';cp=0;cd=null;fin=false;render()}catch(e){err=e.status===429?'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות':e.status===401?'שם משתמש או סיסמה שגויים':e.status?'השרת החזיר שגיאה (קוד '+e.status+'). בדוק את הלוגים בשרת':location.protocol==='file:'?'הקובץ נפתח מהמחשב ולא דרך כתובת השרת':'אין תקשורת עם השרת (כתובת או רשת)';render()}}
+async function out(){clearTimeout(syncT);try{await sync()}catch(e){}try{if(pushOn()){const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();if(sub)await api('POST','/api/push/unsub',{endpoint:sub.endpoint})}}catch(e){}try{await api('POST','/api/logout')}catch(e){}S.me=null;S.users=[];S.progs=[];S.plans=[];S.exs=[];tab='home';err='';cred=null;render()}
 
 /* ---------- trainee ---------- */
 function home(u){const hr=new Date().getHours(),pl=planOf(u),nx=nextOf(u),lw=u.weights[u.weights.length-1],wd=lw&&lw[0]===todayKey();let k=0,K=0,done=0;
@@ -231,14 +248,23 @@ function home(u){const hr=new Date().getHours(),pl=planOf(u),nx=nextOf(u),lw=u.w
  <div class="card"><div class="row sp"><h2 style="margin:0">מים</h2><span class="mut">${(u.water/1000).toFixed(2)} מתוך ${u.goal/1000} ליטר</span></div>
  <div class="row" style="margin-top:14px;gap:14px"><button class="rb" aria-label="הפחת 250 מ״ל" onclick="addW(-250)">−</button><div class="bar" style="flex:1"><i style="width:${Math.min(100,u.water/u.goal*100)}%;background:var(--wat)"></i></div><button class="rb pl" aria-label="הוסף 250 מ״ל" onclick="addW(250)">+</button></div>
  <div style="text-align:center;margin-top:8px"><button class="g" onclick="addW(500)">+500 מ"ל</button></div></div>
+ <div class="card"><div class="row sp"><h2 style="margin:0">צעדים</h2><span class="mut">${(u.steps||0).toLocaleString()} מתוך ${(u.sgoal||8000).toLocaleString()}</span></div>
+ <div class="row" style="margin-top:14px;gap:14px"><button class="rb" aria-label="הפחת 500 צעדים" onclick="addSteps(-500)">−</button><div class="bar" style="flex:1"><i style="width:${Math.min(100,(u.steps||0)/(u.sgoal||8000)*100)}%;background:var(--ok)"></i></div><button class="rb pl" aria-label="הוסף 500 צעדים" onclick="addSteps(500)">+</button></div>
+ <div class="row" style="margin-top:12px"><input id="stn" type="number" inputmode="numeric" placeholder="סה״כ צעדים להיום" aria-label="סה״כ צעדים"><button onclick="saveSteps()">עדכן</button></div></div>
  ${checkin(u)}`}
 function nutrition(u){const pl=planOf(u);let k=0,pr=0;pl.meals.forEach((_,i)=>{const o=optOf(u,i);if(msOf(u,i).v){k+=num(o.k);pr+=num(o.p)}});
  return `<div class="top"><div><h1>תזונה</h1><span class="mut">${pl.name}</span></div></div><div class="card hero"><div class="mut">נאכל עד כה</div><div class="big">${k} <span style="font-size:16px;font-weight:500">קל׳ · ${pr}ג׳ חלבון</span></div></div>
  <div class="card"><div class="mut" style="margin-bottom:6px">אפשר לבחור חלופה מהאפשרויות שהמאמן הגדיר</div>
  ${pl.meals.map((m,i)=>{const s=msOf(u,i),o=optOf(u,i);return `<div class="meal"><div class="row"><button class="chk ${s.v?'on':''}" aria-label="סמן כנאכלה" onclick="meal(${i})">${s.v?'✓':''}</button><div style="flex:1"><b>${m.n}</b><div class="mut">${o.d}</div></div><span class="mut">${o.k} קל׳ · ${o.p}ג׳</span></div>
  ${m.opts.length>1?`<div class="opts">${m.opts.map((x,j)=>`<button class="opt ${s.c===j?'on':''}" onclick="pick(${i},${j})">${x.d.split(',')[0]}</button>`).join('')}</div>`:''}</div>`}).join('')}</div>`}
-function checkin(u){const c=u.checkin||{},f=c.sleep&&c.energy&&c.stress;const sc=(k,l)=>`<div style="margin-bottom:12px"><div class="mut" style="margin-bottom:6px">${l}</div><div class="scale">${[1,2,3,4,5].map(n=>`<button class="${c[k]===n?'on':''}" onclick="ci('${k}',${n})">${n}</button>`).join('')}</div></div>`;
- return `<details class="card" ${OP.has('ci')?'open':''} ontoggle="tgo('ci',this.open)"><summary class="sum"><h2 style="margin:0">איך אתה היום?</h2><span class="pill ${f?'ok':''}">${f?'מולא':'לא מולא'}</span></summary><div style="margin-top:14px">${sc('sleep','שינה (1 גרועה · 5 מעולה)')}${sc('energy','אנרגיה')}${sc('stress','מתח')}</div></details>`}
+function checkin(u){const c=u.checkin||{},f=c.sleep&&c.energy&&c.stress&&c.hunger&&c.hrs;const sc=(k,l)=>`<div style="margin-bottom:12px"><div class="mut" style="margin-bottom:6px">${l}</div><div class="scale">${[1,2,3,4,5].map(n=>`<button class="${c[k]===n?'on':''}" onclick="ci('${k}',${n})">${n}</button>`).join('')}</div></div>`;
+ return `<details class="card" ${OP.has('ci')?'open':''} ontoggle="tgo('ci',this.open)"><summary class="sum"><h2 style="margin:0">איך אתה היום?</h2><span class="pill ${f?'ok':''}">${f?'מולא':'לא מולא'}</span></summary><div style="margin-top:14px">${sc('sleep','איכות שינה (1 גרועה · 5 מעולה)')}
+ <div style="margin-bottom:12px"><div class="mut" style="margin-bottom:6px">כמה שעות ישנת הלילה?</div><input id="sh" type="number" step="0.5" min="0" max="16" inputmode="decimal" placeholder="לדוגמה 7.5" value="${c.hrs||''}" onchange="cih(this.value)" aria-label="שעות שינה"></div>
+ ${sc('energy','אנרגיה')}${sc('stress','מתח')}
+ <div style="margin-bottom:4px"><div class="mut" style="margin-bottom:6px">עד כמה היית רעב אתמול? (1 שבע מאוד · 10 רעב קיצוני)</div><div class="scale" style="flex-wrap:wrap">${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button style="min-width:calc(20% - 5px)" class="${c.hunger===n?'on':''}" onclick="ci('hunger',${n})">${n}</button>`).join('')}</div></div></div></details>`}
+const cih=v=>{const u=me(),n=parseFloat(v);u.checkin=u.checkin||{};if(n>0&&n<=16)u.checkin.hrs=Math.round(n*2)/2;else delete u.checkin.hrs;save();render()};
+const addSteps=n=>{const u=me();u.steps=Math.max(0,(u.steps||0)+n);save();render()};
+const saveSteps=()=>{const v=Math.round(parseFloat(document.getElementById('stn').value));if(!(v>=0))return flash('הזן מספר צעדים');me().steps=Math.min(v,200000);save();render()};
 const addW=n=>{const u=me();u.water=Math.max(0,u.water+n);save();render()};
 const meal=i=>{const s=msOf(me(),i);s.v=s.v?0:1;save();render()};
 const pick=(i,j)=>{msOf(me(),i).c=j;save();render()};
@@ -292,7 +318,7 @@ function body(u){const l=u.weights[u.weights.length-1];
 const addWeight=()=>saveWeight('nw');
 function trainee(u){const t=tab==='train'?train(u):tab==='food'?nutrition(u):tab==='cal'?calendar(u):tab==='body'?body(u):tab==='set'?tSettings(u):home(u);
  const I={home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',train:'<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>',food:'<path d="M7 3v8M4 3v5a3 3 0 006 0V3M7 11v10M17 3c-2 2-3 5-3 8h3v10"/>',body:'<path d="M3 17l5-6 4 4 8-9M15 6h5v5"/>',cal:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>'};
- return `<div class="wrap">${t}</div>${toast?`<div class="${toast.startsWith('🏆')?'tst':'timer'}" style="justify-content:center">${toast}</div>`:''}${rest>0?`<div class="rest" role="timer"><div class="row sp"><div><div class="mut">מנוחה${restName?' · '+restName:''}</div><b id="rt" class="rtv">${fmtT(rest)}</b></div><div class="row"><button onclick="rest+=15;restTotal+=15;render()">+15</button><button onclick="rest=0;clearInterval(tick);render()">דלג</button></div></div><div class="bar"><i id="rf" style="width:${rest/restTotal*100}%"></i></div></div>`:''}
+ return `<div class="wrap">${t}</div>${toast?`<div class="${toast.startsWith('🏆')?'tst':'timer'}" style="justify-content:center">${toast}</div>`:''}${rest>0?`<div class="rest" role="timer"><div class="row sp"><div><div class="mut">מנוחה${restName?' · '+restName:''}</div><b id="rt" class="rtv">${fmtT(rest)}</b></div><div class="row"><button onclick="addRest(15)">+15</button><button onclick="skipRest()">דלג</button></div></div><div class="bar"><i id="rf" style="width:${rest/restTotal*100}%"></i></div></div>`:''}
  <nav class="tabs">${[['home','בית'],['train','אימון'],['food','תזונה'],['cal','יומן'],['body','גוף']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="tab='${k}';render()"><svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>${l}</button>`).join('')}</nav>`}
 /* ---------- coach ---------- */
 const inp=(p,v,ph,t='text')=>`<input type="${t}" placeholder="${ph}" value="${String(v).replace(/"/g,'&quot;')}" onchange="ed('${p}',${t==='number'?'num(this.value)':'this.value'});render()">`;
@@ -325,14 +351,14 @@ function coachDetail(u){const ix=S.users.indexOf(u),al=alerts(u),n=planOf(u).mea
  <div class="nav">${[['sum','סקירה'],['wk','אימונים'],['nu','תזונה'],['log','היסטוריה'],['set','הגדרות']].map(([k,l])=>`<button class="${dtab===k?'on':''}" onclick="dtab='${k}';render()">${l}</button>`).join('')}</div>`;
  let b='';
  if(dtab==='sum')b=`${al.length?`<div class="row wr" style="margin-bottom:14px">${al.map(a=>`<span class="pill ${a[0]}">${a[1]}</span>`).join('')}</div>`:''}
- <div class="stats"><div><b>${u.ms.filter(m=>m.v).length}/${n}</b><span>ארוחות</span></div><div><b>${Math.round(u.water/u.goal*100)}%</b><span>מים</span></div><div><b>${volOf(u).toLocaleString()}</b><span>נפח בביצוע</span></div></div>
+ <div class="stats s4"><div><b>${u.ms.filter(m=>m.v).length}/${n}</b><span>ארוחות</span></div><div><b>${Math.round(u.water/u.goal*100)}%</b><span>מים</span></div><div><b>${u.day===isoToday()?(u.steps||0).toLocaleString():0}</b><span>צעדים (יעד ${(u.sgoal||8000).toLocaleString()})</span></div><div><b>${volOf(u).toLocaleString()}</b><span>נפח בביצוע</span></div></div>
  <div class="grid"><div class="card"><h2>${L?'אימון אחרון · '+L.name:'אימון אחרון'}</h2>${L&&L.rpe?`<div class="row wr" style="margin-bottom:10px"><span class="pill">נפח ${L.vol.toLocaleString()} ק״ג</span><span class="pill">${L.mins} דק׳</span><span class="pill ${L.rpe>=9?'warn':''}">קושי ${L.rpe}/10</span>${(L.prs||[]).map(p=>`<span class="pill ok">🏆 ${p.n} ${p.w}×${p.r}</span>`).join('')}</div>${L.note?`<div style="margin-bottom:10px">${L.note}</div>`:''}`:''}${notes(u).map(([id,t])=>`<div style="margin-bottom:8px"><span class="pill bad">הערה</span> ${exName(id)}: ${t}</div>`).join('')}${L?L.items.map(e=>`<div style="padding:8px 0;border-top:1px solid var(--line)"><b>${e.n}</b><div class="mut">${e.sets.map(x=>x[0]+'×'+x[1]+(x[2]?' @'+x[2]:'')).join(' · ')}</div>${e.note?`<div><span class="pill bad">הערה</span> ${e.note}</div>`:''}</div>`).join(''):'<span class="mut">עדיין לא שמר אימון</span>'}</div>
- <div class="card"><h2>משקל גוף</h2>${chart(u.weights)}<div class="mut" style="margin-top:10px">${c?`צ׳ק-אין: שינה ${c.sleep||'—'} · אנרגיה ${c.energy||'—'} · מתח ${c.stress||'—'}`:'צ׳ק-אין לא מולא היום'}</div></div>
+ ${insights(u)}<div class="card"><h2>משקל גוף</h2>${chart(u.weights)}<div class="mut" style="margin-top:10px">${c?`צ׳ק-אין: שינה ${c.sleep||'—'}/5 (${c.hrs?c.hrs+' שעות':'—'}) · אנרגיה ${c.energy||'—'} · מתח ${c.stress||'—'} · רעב אתמול ${c.hunger||'—'}/10`:'צ׳ק-אין לא מולא היום'}</div></div>
  <div class="card"><h2>הודעה למתאמן</h2><textarea id="cn" rows="3">${u.coachNote}</textarea><button class="p" style="margin-top:10px" onclick="saveNote('${u.id}')">שלח הודעה</button></div></div>`;
  if(dtab==='wk')b=dWk(u);
  if(dtab==='nu')b=dNu(u);
  if(dtab==='log')b=(u.log||[]).slice().sort((a,c)=>c.date-a.date).map(r=>`<div class="card"><div class="row sp wr"><b>${r.name}</b><span class="mut">${new Date(r.date).toLocaleDateString('he-IL')}</span></div><div class="row wr" style="margin:8px 0"><span class="pill">נפח ${r.vol.toLocaleString()} ק״ג</span><span class="pill">${r.mins} דק׳</span><span class="pill ${r.rpe>=9?'warn':''}">קושי ${r.rpe}/10</span></div>${r.note?`<div>${r.note}</div>`:''}${(r.items||[]).map(e=>`<div class="mut">${e.n}: ${e.sets.map(x=>x[0]+'×'+x[1]).join(' · ')}</div>`).join('')}</div>`).join('')||'<div class="card mut">עדיין אין אימונים שנשמרו.</div>';
- if(dtab==='set')b=`<div class="card" style="display:grid;gap:8px"><div class="mut">שם</div>${inp(`users.${ix}.name`,u.name,'שם')}<div class="mut">שם משתמש</div>${inp(`users.${ix}.user`,u.user,'שם משתמש')}<div class="mut">יעד מים (מ"ל)</div>${inp(`users.${ix}.goal`,u.goal,'3000','number')}<div class="mut">בלוק אימון</div><div class="ce">${inp(`users.${ix}.block.n`,u.block.n,'שם')}${inp(`users.${ix}.block.w`,u.block.w,'שבוע','number')}${inp(`users.${ix}.block.of`,u.block.of,'מתוך','number')}</div><div class="mut">סטטוס</div><select onchange="setSt('${u.id}',this.value)">${['פעיל','מושהה','ארכיון'].map(x=>`<option ${u.status===x?'selected':''}>${x}</option>`).join('')}</select><button class="g" onclick="resetPw('${u.id}')">איפוס סיסמה</button></div>`;
+ if(dtab==='set')b=`<div class="card" style="display:grid;gap:8px"><div class="mut">שם</div>${inp(`users.${ix}.name`,u.name,'שם')}<div class="mut">שם משתמש</div>${inp(`users.${ix}.user`,u.user,'שם משתמש')}<div class="mut">יעד מים (מ"ל)</div>${inp(`users.${ix}.goal`,u.goal,'3000','number')}<div class="mut">יעד צעדים יומי</div>${inp(`users.${ix}.sgoal`,u.sgoal||8000,'8000','number')}<div class="mut">בלוק אימון</div><div class="ce">${inp(`users.${ix}.block.n`,u.block.n,'שם')}${inp(`users.${ix}.block.w`,u.block.w,'שבוע','number')}${inp(`users.${ix}.block.of`,u.block.of,'מתוך','number')}</div><div class="mut">סטטוס</div><select onchange="setSt('${u.id}',this.value)">${['פעיל','מושהה','ארכיון'].map(x=>`<option ${u.status===x?'selected':''}>${x}</option>`).join('')}</select><button class="g" onclick="resetPw('${u.id}')">איפוס סיסמה</button></div>`;
  return credBox()+head+b}
 const tgl=(id,w)=>{const u=U(id),i=u.progs.indexOf(w);i<0?u.progs.push(w):u.progs.splice(i,1);save()};
 const setPlan=(id,p)=>{const u=U(id);u.plan=p;u.ms=[];save();render()};
@@ -388,7 +414,7 @@ function saveWorkout(){const u=me(),a=u.act,p=progOf(a.pid),d=effDay(u,p.days.fi
   done.forEach(x=>{const w=num(x.w),r=num(x.r);if(x.pr&&(!top||w>top.w||(w===top.w&&r>top.r)))top={n:e.n,w,r};if(w>R.maxW)R.maxW=w;if(w>0&&r>(R.byW[w]||0))R.byW[w]=r});
   if(top)prs.push(top);items.push({n:e.n,sets:done.map(x=>[x.w,x.r,x.x]),note:l.note})});
  const rec={name:p.name+' · '+d.name,items,prs,vol:dayVol(u,d.id),mins:Math.max(1,Math.round((Date.now()-a.t0)/60000)),rpe:a.rpe,note:a.note||'',date:Date.now()};
- u.last=rec;(u.log=u.log||[]).push(rec);u.lastDone={pid:p.id,di:p.days.findIndex(x=>x.id===d.id)};delete u.cur[d.id];u.act=null;fin=false;u.lastTrain=0;rest=0;clearInterval(tick);OPN.clear();swo=null;open=null;cd=null;tab='home';save();flash(prs.length?'האימון נשמר ✓ · שברת '+prs.length+' שיאים':'האימון נשמר ✓');window.scrollTo(0,0)}
+ u.last=rec;(u.log=u.log||[]).push(rec);u.lastDone={pid:p.id,di:p.days.findIndex(x=>x.id===d.id)};delete u.cur[d.id];u.act=null;fin=false;u.lastTrain=0;rest=0;clearInterval(tick);pushCancel();OPN.clear();swo=null;open=null;cd=null;tab='home';save();flash(prs.length?'האימון נשמר ✓ · שברת '+prs.length+' שיאים':'האימון נשמר ✓');window.scrollTo(0,0)}
 function saveWeight(id){const el=document.getElementById(id),v=parseFloat(el&&el.value);if(!v)return flash('הזן משקל תקין');const u=me(),k=todayKey(),l=u.weights[u.weights.length-1];
  if(l&&l[0]===k)l[1]=v;else u.weights.push([k,v]);save();flash('השקילה נשמרה ✓')}
 setInterval(()=>{const e=document.getElementById('el'),u=S.me&&me();if(e&&u&&u.act)e.textContent=elapsed(u.act)},1000);
@@ -401,9 +427,22 @@ function wchart(ws){const v=ws.slice(-7);if(v.length<2)return '<div class="mut" 
  const vs=v.map(x=>x[1]),mn=Math.min(...vs)-.4,mx=Math.max(...vs)+.4,W=300,H=130,X=i=>20+i*(W-40)/(v.length-1),Y=x=>H-26-(x-mn)/(mx-mn)*(H-48);
  return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="גרף משקל"><polyline points="${vs.map((x,i)=>X(i)+','+Y(x)).join(' ')}" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>${vs.map((x,i)=>`<circle cx="${X(i)}" cy="${Y(x)}" r="3.5" fill="var(--acc)"/><text x="${X(i)}" y="${Y(x)-9}" text-anchor="middle" font-size="9.5" fill="var(--ink)">${x}</text><text x="${X(i)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--mut)">${v[i][0]}</text>`).join('')}</svg>`}
 
+
+function insights(u){const iso=isoToday(),n=planOf(u).meals.length,rows=Object.entries(u.daily||{}).sort().slice(-7).map(([d,x])=>({d,hg:x.hg||0,sh:x.sh||0,m:x.m||0}));
+ const ck=u.checkin;if(u.day===iso&&ck&&(ck.hunger||ck.hrs))rows.push({d:iso,hg:ck.hunger||0,sh:ck.hrs||0,m:(u.ms||[]).filter(x=>x.v).length,t:1});
+ const av=k=>{const v=rows.map(r=>r[k]).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0},hv=rows.filter(r=>r.hg>0),H=av('hg'),SH=av('sh');
+ const ad=rows.length&&n?rows.reduce((a,r)=>a+Math.min(1,r.m/n),0)/rows.length:0,g=[];
+ if(hv.length<3)g.push(['','עדיין אין מספיק נתונים. נדרשים לפחות 3 ימים עם דיווח רעב.']);
+ else{if(H>=7)g.push([ad<.7?'warn':'bad',ad<.7?'רעב גבוה לצד ארוחות שלא סומנו: כנראה פער בביצוע ולא בעיה בתפריט.':'רעב גבוה למרות עמידה בתפריט: ייתכן שהתפריט נמוך בקלוריות, בחלבון או בסיבים. שווה להתאים.']);
+  else if(H<=3)g.push(['warn','רעב נמוך בממוצע: ייתכן שהתפריט גדול מדי או שקשה לסיים אותו.']);else g.push(['ok','רמת הרעב סבירה. התפריט נראה מתאים.']);
+  if(hv.filter(r=>r.hg>=8).length>=2)g.push(['warn','יותר מיום אחד עם רעב 8 ומעלה.'])}
+ if(SH&&SH<6.5)g.push(['warn','שינה קצרה בממוצע ('+SH.toFixed(1)+' שעות). משפיעה על רעב והתאוששות.']);
+ return `<div class="card"><h2>רעב ושינה · 7 ימים</h2><div class="stats s4" style="margin-bottom:12px"><div><b>${H?H.toFixed(1):'—'}</b><span>רעב ממוצע</span></div><div><b>${SH?SH.toFixed(1):'—'}</b><span>שעות שינה</span></div><div><b>${rows.length&&n?Math.round(ad*100)+'%':'—'}</b><span>עמידה בארוחות</span></div><div><b>${hv.length}</b><span>ימי דיווח</span></div></div>
+ ${g.map(x=>`<div style="margin-bottom:8px"><span class="pill ${x[0]}">${x[0]==='ok'?'תקין':x[0]==='bad'?'פער':x[0]==='warn'?'שים לב':'מידע'}</span> ${x[1]}</div>`).join('')}
+ ${rows.length?`<div class="op hd" style="grid-template-columns:1fr 1fr 1fr 1fr"><span>תאריך</span><span>רעב</span><span>שינה</span><span>ארוחות</span></div>${rows.slice().reverse().map(r=>`<div class="op" style="grid-template-columns:1fr 1fr 1fr 1fr;margin-bottom:2px"><span class="mut">${r.d.slice(8)}.${r.d.slice(5,7)}${r.t?' (היום)':''}</span><span>${r.hg||'—'}</span><span>${r.sh||'—'}</span><span>${r.m}/${n}</span></div>`).join('')}`:''}</div>`}
 function today(ts){const iso=isoToday(),tk=todayKey(),ds=new Date().toDateString();
  const rows=ts.map(u=>{const fresh=u.day===iso,n=planOf(u).meals.length,tr=u.last&&new Date(u.last.date).toDateString()===ds,lw=u.weights[u.weights.length-1],wd=lw&&lw[0]===tk,m=fresh?u.ms.filter(x=>x.v).length:0,w=fresh?Math.round(u.water/u.goal*100):0,d=lastTrain(u),al=alerts(u).length;
-  return {u,tr,d,al,h:`<div class="li" role="button" tabindex="0" onclick="openT('${u.id}')"><span class="av">${u.name.trim()[0]}</span><div style="flex:1;min-width:0"><b>${u.name}</b></div><div class="chips"><span class="pill ${tr?'ok':d>=3?'bad':''}">${tr?'התאמן היום':d>=3?'לא התאמן '+d+' ימים':'אימון לפני '+d+(d===1?' יום':' ימים')}</span><span class="pill ${wd?'ok':''}">${wd?'נשקל':'לא נשקל'}</span><span class="pill ${m>=n&&n?'ok':''}">ארוחות ${m}/${n}</span><span class="pill ${w>=80?'ok':''}">מים ${w}%</span></div></div>`}}).sort((a,b)=>(b.al>0)-(a.al>0)||b.d-a.d);
+  return {u,tr,d,al,h:`<div class="li" role="button" tabindex="0" onclick="openT('${u.id}')"><span class="av">${u.name.trim()[0]}</span><div style="flex:1;min-width:0"><b>${u.name}</b></div><div class="chips"><span class="pill ${tr?'ok':d>=3?'bad':''}">${tr?'התאמן היום':d>=3?'לא התאמן '+d+' ימים':'אימון לפני '+d+(d===1?' יום':' ימים')}</span><span class="pill ${wd?'ok':''}">${wd?'נשקל':'לא נשקל'}</span><span class="pill ${m>=n&&n?'ok':''}">ארוחות ${m}/${n}</span><span class="pill ${w>=80?'ok':''}">מים ${w}%</span><span class="pill ${fresh&&(u.steps||0)>=(u.sgoal||8000)?'ok':''}">צעדים ${fresh?(u.steps||0).toLocaleString():0}</span></div></div>`}}).sort((a,b)=>(b.al>0)-(a.al>0)||b.d-a.d);
  const t=rows.filter(r=>r.tr).length;
  return `<div class="row sp" style="margin-bottom:12px"><h2 class="h2" style="margin:0">היום</h2><span class="mut">${t} מתוך ${ts.length} התאמנו</span></div><div class="card list tdy">${rows.map(r=>r.h).join('')||'<div class="li mut">אין מתאמנים פעילים</div>'}</div>`}
 function bkAge(){try{const t=+localStorage.getItem('dfBk');return t?Math.floor((Date.now()-t)/864e5):null}catch(e){return null}}
@@ -415,7 +454,7 @@ function settings(){const a=bkAge(),me_=me();
  ${pwCard(8)}
  <div class="card"><h2>גיבוי נתונים</h2><div class="srow"><div><b>הורד גיבוי מלא</b><span class="mut">${a===null?'טרם בוצע גיבוי במכשיר הזה':'גיבוי אחרון: '+(a===0?'היום':'לפני '+a+' ימים')}</span></div>${a===null||a>=7?'<span class="pill warn">מומלץ</span>':''}<a class="mut" href="/api/export" download onclick="bkDone()" style="border:1px solid var(--line);border-radius:12px;padding:10px 14px;color:var(--ink)">הורד</a></div></div>
  <div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית. נפתח כמו אפליקציה</span></div></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
-function tSettings(u){return `<div class="top row sp"><h1>הגדרות</h1><button class="g" onclick="tab='home';render()">חזרה</button></div>${pwCard(6)}<div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית</span></div></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
+function tSettings(u){const po=pushOn(),ok=pushOK();return `<div class="top row sp"><h1>הגדרות</h1><button class="g" onclick="tab='home';render()">חזרה</button></div><div class="card"><h2>התראות</h2><div class="srow"><div><b>התראת סיום מנוחה</b><span class="mut">${!ok?(isIOS()&&!isStandalone()?'באייפון צריך קודם להוסיף את האפליקציה למסך הבית (שיתוף ← הוסף למסך הבית) ולפתוח אותה משם':'הדפדפן הזה לא תומך בהתראות'):po?'פעילות. תקבל התראה כשהמנוחה נגמרת, גם אם יצאת מהאפליקציה':'קבל התראה כשזמן המנוחה נגמר, גם אם יצאת מהאפליקציה'}</span></div>${ok?(po?'<button class="g" onclick="disablePush()">כבה</button>':'<button class="p" onclick="enablePush()">הפעל</button>'):''}</div></div>${pwCard(6)}<div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית</span></div></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
 
 
 function altAdd(p,d,i,a){const e=S.progs[p].days[d].ex[i];(e.alts=e.alts||[]).push(a||{id:'a'+rid(),n:'',tip:''});OP.add(e.id);save();render()}

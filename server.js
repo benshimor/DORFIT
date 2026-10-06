@@ -25,11 +25,11 @@ const str = (x, n) => typeof x === 'string' && x.length <= n;
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
-const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs']; // trainee-owned
-const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan'];                                                          // coach-owned
+const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps']; // trainee-owned
+const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal'];                                                          // coach-owned
 const checks = {
   water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
-  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray,
+  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000,
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
 };
@@ -214,6 +214,45 @@ app.put('/api/library', wrap((req, res) => {
   })();
   res.json({ ok: true });
 }));
+
+// ---------- web push (rest-timer notifications) ----------
+let webpush = null; try { webpush = require('web-push'); } catch (e) { console.log('[push] web-push not installed, notifications disabled'); }
+db.exec("create table if not exists kv(k text primary key, v text not null); create table if not exists push_subs(endpoint text primary key, user_id text not null, data text not null)");
+let VAPID = null;
+if (webpush) {
+  const r = db.prepare("select v from kv where k='vapid'").get();
+  if (r) VAPID = JSON.parse(r.v); else { VAPID = webpush.generateVAPIDKeys(); db.prepare("insert into kv(k,v) values('vapid',?)").run(JSON.stringify(VAPID)); }
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:admin@dorfit.app', VAPID.publicKey, VAPID.privateKey);
+}
+const PUSH_HOST = /^https:\/\/(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9.-]+\.notify\.windows\.com|web\.push\.apple\.com)\//;
+const restTimers = new Map();
+async function sendPush(userId, payload) {
+  if (!webpush) return;
+  for (const row of db.prepare('select endpoint,data from push_subs where user_id=?').all(userId)) {
+    try { await webpush.sendNotification(JSON.parse(row.data), JSON.stringify(payload), { TTL: 120, urgency: 'high' }); }
+    catch (e) { if (e.statusCode === 404 || e.statusCode === 410) db.prepare('delete from push_subs where endpoint=?').run(row.endpoint); else console.log('[push] send failed', e.statusCode || e.code || e.message); }
+  }
+}
+app.get('/api/push/key', wrap((req, res) => { auth(req); res.json({ key: VAPID ? VAPID.publicKey : null }); }));
+app.post('/api/push/sub', wrap((req, res) => {
+  auth(req); if (!webpush) fail(503, 'התראות לא זמינות');
+  const sub = (req.body || {}).sub;
+  if (!obj(sub) || !str(sub.endpoint, 700) || !PUSH_HOST.test(sub.endpoint) || !obj(sub.keys) || !str(sub.keys.p256dh, 200) || !str(sub.keys.auth, 100)) fail(400, 'מנוי לא תקין');
+  db.prepare('insert or replace into push_subs(endpoint,user_id,data) values(?,?,?)').run(sub.endpoint, req.user.id, JSON.stringify({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } }));
+  const all = db.prepare('select endpoint from push_subs where user_id=? order by rowid').all(req.user.id);
+  all.slice(0, Math.max(0, all.length - 5)).forEach(r => db.prepare('delete from push_subs where endpoint=?').run(r.endpoint));
+  res.json({ ok: true });
+}));
+app.post('/api/push/unsub', wrap((req, res) => { auth(req); const ep = (req.body || {}).endpoint; if (str(ep, 700)) db.prepare('delete from push_subs where endpoint=? and user_id=?').run(ep, req.user.id); res.json({ ok: true }); }));
+app.post('/api/push/rest', wrap((req, res) => {
+  auth(req, 'trainee'); const secs = Math.round(Number((req.body || {}).secs)), name = String((req.body || {}).name || '').slice(0, 60);
+  if (!(secs >= 3 && secs <= 1200)) fail(400, 'זמן לא תקין');
+  clearTimeout(restTimers.get(req.user.id));
+  const uid = req.user.id;
+  restTimers.set(uid, setTimeout(() => { restTimers.delete(uid); sendPush(uid, { title: 'המנוחה הסתיימה', body: name ? 'חזור לסט הבא: ' + name : 'חזור לסט הבא', tag: 'rest', url: '/' }); }, secs * 1000));
+  res.json({ ok: true });
+}));
+app.post('/api/push/cancel', wrap((req, res) => { auth(req); clearTimeout(restTimers.get(req.user.id)); restTimers.delete(req.user.id); res.json({ ok: true }); }));
 app.get('/api/export', wrap((req, res) => {
   auth(req, 'coach');
   res.set('Content-Disposition', 'attachment; filename="dorfit-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
