@@ -72,7 +72,12 @@ function ensureCoach() {
   console.log(gen ? `[setup] coach "${user}" created. GENERATED PASSWORD (save it now): ${pass}` : `[setup] coach "${user}" created`);
 }
 seedTemplates(); ensureCoach();
-
+if (process.env.COACH_RESET === '1' && process.env.COACH_PASS) {
+  const un = (process.env.COACH_USER || 'coach').toLowerCase();
+  db.prepare("update users set username=?, pass=? where role='coach'").run(un, hash(process.env.COACH_PASS));
+  db.prepare("delete from sessions where user_id in (select id from users where role='coach')").run();
+  console.log('[setup] coach credentials reset from env (remove COACH_RESET after this run)');
+}
 /* ---------- app ---------- */
 const app = express();
 app.set('trust proxy', 1);
