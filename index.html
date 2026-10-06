@@ -143,7 +143,7 @@ const mkT=(name,user,pass)=>({id:user,name,user,pass,role:'t',status:'פעיל',
  ms:[{v:1,c:0},{v:0,c:0},{v:0,c:0},{v:0,c:0}],hist:{},cur:{},last:null,
  weights:[['01.09',72.4],['08.09',72.0],['15.09',71.8],['22.09',71.9],['29.09',71.3]],checkin:null,
  coachNote:'שבוע טוב! נעלה משקל כשתעברי את הטווח העליון בכל הסטים.',block:{n:'היפרטרופיה',w:3,of:6},lastTrain:2});
-let S={me:null,users:[],progs:[],plans:[]};
+let S={me:null,users:[],progs:[],plans:[],exs:[]};const libJ=()=>JSON.stringify({progs:S.progs,plans:S.plans,exs:S.exs});
 const TF=['water','ms','hist','cur','act','last','log','pr','chk','weights','checkin','lastDone','daily','day','reqs'],CF=['name','user','status','goal','block','coachNote','progs','plan'];
 let sent={},offline=false,dirty=false,syncT=null,syncing=false,cred=null;
 const pickF=(o,f)=>{const r={};f.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
@@ -156,16 +156,16 @@ async function api(m,u,b){let r;try{r=await fetch(u,{method:m,headers:{'Content-
 function save(){dirty=true;const u=me();try{if(u&&u.role==='t')localStorage.setItem(pendKey(u),JSON.stringify(pickF(u,TF)))}catch(e){}clearTimeout(syncT);syncT=setTimeout(sync,700)}
 async function sync(){const u=me();if(!u)return;if(syncing){syncT=setTimeout(sync,700);return}syncing=true;
  try{if(u.role==='t'){const j=JSON.stringify(pickF(u,TF));if(j!==sent.me){await api('PUT','/api/me',JSON.parse(j));sent.me=j;try{if(JSON.stringify(pickF(u,TF))===j)localStorage.removeItem(pendKey(u))}catch(e){}}}
-  else{const lib=JSON.stringify({progs:S.progs,plans:S.plans});if(lib!==sent.lib){await api('PUT','/api/library',JSON.parse(lib));sent.lib=lib}
+  else{const lib=libJ();if(lib!==sent.lib){await api('PUT','/api/library',JSON.parse(lib));sent.lib=lib}
    for(const t of S.users.filter(x=>x.role==='t')){const j=JSON.stringify(pickF(t,CF));if(j!==sent['u'+t.id]){await api('PUT','/api/users/'+t.id,JSON.parse(j));sent['u'+t.id]=j}}}
   dirty=false;if(offline){offline=false;render()}}
  catch(e){if(e.auth){}else if(e.status){dirty=false;flash('שגיאה בשמירה: '+e.message,3500);try{await reload()}catch(x){}}else{offline=true;render();syncT=setTimeout(sync,5000)}}
  finally{syncing=false}}
 function rollDay(u){const t=isoToday();if(u.day===t)return;if(u.day){u.daily=u.daily||{};u.daily[u.day]={w:u.water||0,m:(u.ms||[]).filter(x=>x.v).length};const k=Object.keys(u.daily).sort();while(k.length>120)delete u.daily[k.shift()]}
  u.water=0;u.ms=(u.ms||[]).map(m=>({v:0,c:m.c||0}));u.checkin=null;u.day=t}
-function applyState(st){S.me=st.me;S.users=st.users;S.progs=st.progs;S.plans=st.plans;sent={};const u=me();if(!u)return;
+function applyState(st){S.me=st.me;S.users=st.users;S.progs=st.progs;S.plans=st.plans;S.exs=st.exs||[];sent={};const u=me();if(!u)return;
  if(u.role==='t'){sent.me=JSON.stringify(pickF(u,TF));try{const p=JSON.parse(localStorage.getItem(pendKey(u))||'null');if(p)Object.assign(u,p)}catch(e){}rollDay(u);if(JSON.stringify(pickF(u,TF))!==sent.me)save()}
- else{sent.lib=JSON.stringify({progs:S.progs,plans:S.plans});S.users.filter(x=>x.role==='t').forEach(t=>{sent['u'+t.id]=JSON.stringify(pickF(t,CF))})}}
+ else{sent.lib=libJ();S.users.filter(x=>x.role==='t').forEach(t=>{sent['u'+t.id]=JSON.stringify(pickF(t,CF))})}}
 async function reload(){applyState(await api('GET','/api/state'));render()}
 function merge(st){const u=me();if(!u)return false;let ch=false;const D=(a,b)=>JSON.stringify(a)!==JSON.stringify(b);
  if(u.role==='t'){const su=st.users[0];if(!su)return false;if(D(u.plan,su.plan))u.ms=[];if(D(u.progs,su.progs))u.act=null;
@@ -198,7 +198,7 @@ function chart(ws){if(!ws.length)return '<span class="mut">אין שקילות �
  return `<svg viewBox="0 0 ${W} ${H}" width="100%"><polyline points="${P(v)}" fill="none" stroke="var(--line)" stroke-width="2"/>${v.map((x,i)=>`<circle cx="${X(i)}" cy="${Y(x)}" r="3" fill="var(--mut)"/>`).join('')}<polyline points="${P(ma)}" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linejoin="round"/></svg><div class="mut"><span style="color:var(--acc)">━</span> ממוצע נע · ● שקילה</div>`}
 function ring(p,txt,sub,c){const C=2*Math.PI*29;return `<div><div class="ring"><svg width="68" height="68"><circle cx="34" cy="34" r="29" fill="none" stroke="var(--s2)" stroke-width="6"/><circle cx="34" cy="34" r="29" fill="none" stroke="${c}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-Math.min(1,p))}"/></svg><b>${txt}</b></div><div class="mut">${sub}</div></div>`}
 function notes(u){const a=[];Object.values(u.cur).forEach(d=>Object.entries(d).forEach(([id,l])=>{if(l.note)a.push([id,l.note])}));return a}
-function exName(id){for(const p of S.progs)for(const d of p.days)for(const e of d.ex)if(e.id===id)return e.n;return ''}
+function exName(id){for(const p of S.progs)for(const d of p.days)for(const e of d.ex){if(e.id===id)return e.n;const a=(e.alts||[]).find(x=>x.id===id);if(a)return a.n}return ''}
 function alerts(u){const a=[];if(lastTrain(u)>=5)a.push(['bad','לא התאמן '+lastTrain(u)+' ימים']);
  notes(u).forEach(([id,n])=>{if(/כאב|קשה/.test(n))a.push(['bad','דיווח כאב: '+exName(id)])});
  if(u.checkin&&(u.checkin.sleep<=2||u.checkin.energy<=2))a.push(['warn','שינה/אנרגיה נמוכות']);
@@ -215,7 +215,7 @@ function togPw(){const u=document.getElementById('u').value,p=document.getElemen
 function doLogin(){tryLogin(document.getElementById('u').value.trim(),document.getElementById('p').value)}
 const quick=(u,p)=>tryLogin(u,p);
 async function tryLogin(u,p){try{await api('POST','/api/login',{user:u,pass:p});applyState(await api('GET','/api/state'));err='';tab='home';ct='ov';sel=null;pm=null;lm=null;dtab='sum';cp=0;cd=null;fin=false;render()}catch(e){err=e.status===429?'יותר מדי ניסיונות. נסה שוב בעוד כמה דקות':e.status===401?'שם משתמש או סיסמה שגויים':e.status?'השרת החזיר שגיאה (קוד '+e.status+'). בדוק את הלוגים בשרת':location.protocol==='file:'?'הקובץ נפתח מהמחשב ולא דרך כתובת השרת':'אין תקשורת עם השרת (כתובת או רשת)';render()}}
-async function out(){clearTimeout(syncT);try{await sync()}catch(e){}try{await api('POST','/api/logout')}catch(e){}S.me=null;S.users=[];S.progs=[];S.plans=[];tab='home';err='';cred=null;render()}
+async function out(){clearTimeout(syncT);try{await sync()}catch(e){}try{await api('POST','/api/logout')}catch(e){}S.me=null;S.users=[];S.progs=[];S.plans=[];S.exs=[];tab='home';err='';cred=null;render()}
 
 /* ---------- trainee ---------- */
 function home(u){const hr=new Date().getHours(),pl=planOf(u),nx=nextOf(u),lw=u.weights[u.weights.length-1],wd=lw&&lw[0]===todayKey();let k=0,K=0,done=0;
@@ -247,7 +247,7 @@ const ci=(k,n)=>{const u=me();u.checkin=u.checkin||{};u.checkin[k]=n;save();rend
 function exCard(u,d,o){const e=o.e,l=getLog(u,d.id,e),h=(u.hist[d.id]||{})[e.id]||[],isO=OPN.has(e.id),dn=l.sets.filter(s=>s.d&&!s.wu).length,sg=sugg(u,d.id,e),nw=l.sets.filter(s=>!s.wu).length;
  return `<div class="ex" id="ex-${e.id}"><div class="exh" role="button" tabindex="0" onclick="togO('${e.id}')"><a class="th" ${e.video?`href="${e.video}" target="_blank" rel="noopener"`:''} onclick="event.stopPropagation()" aria-label="סרטון הדגמה">▶</a>
  <div style="flex:1;min-width:0"><div class="row" style="gap:8px"><span class="lb">${o.label}</span><b>${e.n}</b></div><div class="mut" style="margin-top:4px">${e.sets} סטים · ${e.rep} · מנוחה ${fmtR(e.rest)}${dn?` · <span style="color:var(--ok)">${dn}/${nw} בוצעו</span>`:''}</div></div><span class="mut">${isO?'⌃':'⌄'}</span></div>
- ${isO?`<div style="margin-top:14px">${e.tip?`<div class="tip">${e.tip}</div>`:''}${sg&&l.sets.some(x=>!x.wu&&!x.d&&String(x.w)!==String(sg.w))?`<div class="sg">💡 עברת את ${sg.rm} החזרות בכל הסטים עם ${sg.from} ק״ג. הגיע הזמן לנסות ${sg.w} ק״ג <button class="p" style="padding:6px 12px;margin-inline-start:8px" onclick="useSug('${d.id}','${e.id}',${sg.w})">השתמש</button></div>`:''}${h.length?`<div class="mut" style="margin-bottom:10px">המספרים באפור הם האימון הקודם. המטרה: לעבור אותם 🏆</div>`:''}<div class="set hd"><span>#</span><span>קודם</span><span>ק״ג</span><span>חזרות</span><span>RPE</span><span></span></div>
+ ${isO?`<div style="margin-top:14px">${swapBox(u,d,e)}${e.tip?`<div class="tip">${e.tip}</div>`:''}${sg&&l.sets.some(x=>!x.wu&&!x.d&&String(x.w)!==String(sg.w))?`<div class="sg">💡 עברת את ${sg.rm} החזרות בכל הסטים עם ${sg.from} ק״ג. הגיע הזמן לנסות ${sg.w} ק״ג <button class="p" style="padding:6px 12px;margin-inline-start:8px" onclick="useSug('${d.id}','${e.id}',${sg.w})">השתמש</button></div>`:''}${h.length?`<div class="mut" style="margin-bottom:10px">המספרים באפור הם האימון הקודם. המטרה: לעבור אותם 🏆</div>`:''}<div class="set hd"><span>#</span><span>קודם</span><span>ק״ג</span><span>חזרות</span><span>RPE</span><span></span></div>
  ${(()=>{let wi=-1;return l.sets.map((s,j)=>{if(!s.wu)wi++;const pv=s.wu?null:h[wi];return `<div class="set ${s.d?'done':''} ${s.wu?'wu':''}"><span class="mut">${s.wu?'ח':s.pr?'🏆':wi+1}</span><span class="prev">${pv?pv[0]+'×'+pv[1]:'—'}</span>
  <input type="number" inputmode="decimal" placeholder="${pv?pv[0]:''}" value="${s.w}" onchange="setv('${d.id}','${e.id}',${j},'w',this.value)" aria-label="משקל">
  <input type="number" inputmode="numeric" placeholder="${pv?pv[1]:''}" value="${s.r}" onchange="setv('${d.id}','${e.id}',${j},'r',this.value)" aria-label="חזרות">
@@ -261,18 +261,18 @@ function train(u){const ps=myProgs(u);if(!ps.length)return `<div class="top"><h1
  let html='',gs=groups(d);for(let i=0;i<gs.length;){const o=gs[i];if(o.size>1){html+=`<div class="ss"><span class="tag">Superset</span>${gs.slice(i,i+o.size).map(x=>exPrev(u,d,x)).join('')}</div>`;i+=o.size}else{html+=exPrev(u,d,o);i++}}
  return `<div class="head" style="padding-bottom:0"><select aria-label="תוכנית" onchange="cp=this.selectedIndex;cd=null;render()">${ps.map(x=>`<option ${x===p?'selected':''}>${x.name}</option>`).join('')}</select>
  <div class="dt">${p.days.map((x,i)=>`<button class="${x===d?'on':''}" onclick="cd=${i};render()">${x.name}${i===ni?' · הבא':''}</button>`).join('')}</div></div>
- <div style="margin-bottom:14px"><div class="t1">${d.name}</div><div class="mut">${d.ex.length} תרגילים${d===p.days[ni]?' · האימון הבא שלך':''}</div></div>${html||'<span class="mut">אין תרגילים ביום הזה.</span>'}
+ <div style="margin-bottom:14px"><div class="t1">${d.name}</div><div class="mut">${d.ex.length} תרגילים${d===p.days[ni]?' · האימון הבא שלך':''}</div></div>${d.note?`<div class="tip" style="border-inline-start:3px solid var(--acc)"><b>הערת המאמן לאימון:</b><div style="white-space:pre-wrap;margin-top:4px">${d.note}</div></div>`:''}${html||'<span class="mut">אין תרגילים ביום הזה.</span>'}
  <div class="logbar"><button class="p" onclick="beginW('${p.id}',${p.days.indexOf(d)})">התחל אימון</button></div>`}
 const setv=(did,eid,j,k,v)=>{getLog(me(),did,{id:eid}).sets[j][k]=v;save();render()};
 const addSet=(did,eid)=>{getLog(me(),did,{id:eid}).sets.push({w:'',r:'',x:'',d:0});save();render()};
 function exPrev(u,d,o){const e=o.e,h=(u.hist[d.id]||{})[e.id]||[];
  return `<div class="ex"><div class="exh" style="cursor:default"><a class="th" ${e.video?`href="${e.video}" target="_blank" rel="noopener"`:''} aria-label="סרטון הדגמה">▶</a><div style="flex:1;min-width:0"><div class="row" style="gap:8px"><span class="lb">${o.label}</span><b>${e.n}</b></div><div class="mut" style="margin-top:4px">${e.sets} סטים · ${e.rep} · מנוחה ${fmtR(e.rest)}</div></div></div>
- ${e.tip?`<div class="tip" style="margin:12px 0 0">${e.tip}</div>`:''}${h.length?`<div class="mut" style="margin-top:10px">בפעם הקודמת: ${h.map(x=>x[0]+'×'+x[1]).join(' · ')}</div>`:''}${sugHtml(u,d,e)}</div>`}
-function sess(u){const a=u.act,p=progOf(a.pid),d=p&&p.days.find(x=>x.id===a.did);if(!d){u.act=null;save();return train(u)}
+ ${e.tip?`<div class="tip" style="margin:12px 0 0">${e.tip}</div>`:''}${(e.alts||[]).length?`<div class="mut" style="margin-top:10px">חלופות אם צריך: ${e.alts.map(a=>a.n).join(' · ')}</div>`:''}${h.length?`<div class="mut" style="margin-top:10px">בפעם הקודמת: ${h.map(x=>x[0]+'×'+x[1]).join(' · ')}</div>`:''}${sugHtml(u,d,e)}</div>`}
+function sess(u){const a=u.act,p=progOf(a.pid),d0=p&&p.days.find(x=>x.id===a.did);if(!d0){u.act=null;save();return train(u)}const d=effDay(u,d0);
  if(fin)return summary(u,p,d);
  let html='',gs=groups(d);for(let i=0;i<gs.length;){const o=gs[i];if(o.size>1){html+=`<div class="ss"><span class="tag">Superset</span>${gs.slice(i,i+o.size).map(x=>exCard(u,d,x)).join('')}</div>`;i+=o.size}else{html+=exCard(u,d,o);i++}}
  return `<div class="head" style="padding-bottom:14px"><div class="row sp"><div><div class="t1">${d.name}</div><div class="mut">${p.name} · סטים ${sp(u,d)} · נפח ${dayVol(u,d.id).toLocaleString()} ק״ג</div></div><div style="text-align:end"><b id="el" style="font-size:22px;font-variant-numeric:tabular-nums">${elapsed(a)}</b><div class="mut">זמן אימון</div></div></div></div>
- ${sp(u,d).startsWith('0/')?'<div class="tip">מלא משקל וחזרות וסמן ✓ בסיום כל סט. טיימר המנוחה יתחיל לבד, והתרגיל הבא ייפתח אוטומטית.</div>':''}${html}<div style="text-align:center"><button class="x" onclick="cancelAct()">ביטול האימון</button></div>
+ ${d.note?`<div class="tip" style="border-inline-start:3px solid var(--acc)"><b>הערת המאמן לאימון:</b><div style="white-space:pre-wrap;margin-top:4px">${d.note}</div></div>`:''}${sp(u,d).startsWith('0/')?'<div class="tip">מלא משקל וחזרות וסמן ✓ בסיום כל סט. טיימר המנוחה יתחיל לבד, והתרגיל הבא ייפתח אוטומטית.</div>':''}${html}<div style="text-align:center"><button class="x" onclick="cancelAct()">ביטול האימון</button></div>
  <div class="logbar"><button class="p" onclick="fin=true;render()">סיים אימון</button></div>`}
 function summary(u,p,d){const a=u.act,c=u.cur[d.id]||{};let sets=0;d.ex.forEach(e=>{if(c[e.id])sets+=c[e.id].sets.filter(x=>x.d&&!x.wu).length});
  const mins=Math.max(1,Math.round((Date.now()-a.t0)/60000));
@@ -296,8 +296,8 @@ function trainee(u){const t=tab==='train'?train(u):tab==='food'?nutrition(u):tab
  <nav class="tabs">${[['home','בית'],['train','אימון'],['food','תזונה'],['cal','יומן'],['body','גוף']].map(([k,l])=>`<button class="${tab===k?'on':''}" onclick="tab='${k}';render()"><svg viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>${l}</button>`).join('')}</nav>`}
 /* ---------- coach ---------- */
 const inp=(p,v,ph,t='text')=>`<input type="${t}" placeholder="${ph}" value="${String(v).replace(/"/g,'&quot;')}" onchange="ed('${p}',${t==='number'?'num(this.value)':'this.value'});render()">`;
-function coach(){const nav=`<div class="top"><div class="row">${logo()}<span class="mut">ניהול</span></div><button class="g" onclick="out()">יציאה</button></div><div class="nav">${[['ov','סקירה'],['tr','מתאמנים'],['pg','תבניות אימון'],['pl','תבניות תזונה'],['st','הגדרות']].map(([k,l])=>`<button class="${ct===k&&!sel?'on':''}" onclick="ct='${k}';sel=null;pm=null;lm=null;render()">${l}</button>`).join('')}</div>`;
- return `<div class="wrap wide">${(sel||pm!==null||lm!==null)?backBar():''}${nav}${sel?coachDetail(U(sel)):ct==='pg'?pgView():ct==='pl'?plView():ct==='ov'?overview():ct==='st'?settings():coachList()}</div>${toast?`<div class="timer" style="justify-content:center;bottom:24px" role="status">${toast}</div>`:''}`}
+function coach(){const nav=`<div class="top"><div class="row">${logo()}<span class="mut">ניהול</span></div><button class="g" onclick="out()">יציאה</button></div><div class="nav">${[['ov','סקירה'],['tr','מתאמנים'],['pg','תבניות אימון'],['ex','מאגר תרגילים'],['pl','תבניות תזונה'],['st','הגדרות']].map(([k,l])=>`<button class="${ct===k&&!sel?'on':''}" onclick="ct='${k}';sel=null;pm=null;lm=null;render()">${l}</button>`).join('')}</div>`;
+ return `<div class="wrap wide">${(sel||pm!==null||lm!==null)?backBar():''}${nav}${sel?coachDetail(U(sel)):ct==='pg'?pgView():ct==='pl'?plView():ct==='ex'?exView():ct==='ov'?overview():ct==='st'?settings():coachList()}</div>${toast?`<div class="timer" style="justify-content:center;bottom:24px" role="status">${toast}</div>`:''}`}
 function coachList(){const ts=S.users.filter(x=>x.role==='t');
  return `<div class="row sp" style="margin-bottom:14px"><h2 class="h2" style="margin:0">המתאמנים שלי</h2><span class="mut">${ts.filter(t=>t.status==='פעיל').length} פעילים</span></div>
  <div class="card list">${ts.map(u=>{const al=alerts(u),L=u.last,lw=u.weights[u.weights.length-1];return `<div class="li" role="button" tabindex="0" onclick="openT('${u.id}')"><span class="av">${u.name.trim()[0]}</span><div style="flex:1;min-width:0"><b>${u.name}</b><div class="mut">${L?'אימון אחרון: '+L.name.split('·').pop().trim()+' · '+ago(L.date)+' · קושי '+L.rpe+'/10':'טרם שמר אימון'}</div><div class="mut">${lw?'משקל '+lw[1]+' ('+wdelta(u)+')':'אין שקילות'} · ארוחות ${u.ms.filter(m=>m.v).length}/${planOf(u).meals.length}</div></div>${al.length?`<span class="pill ${al[0][0]}">${al.length>1?al.length+' התראות':al[0][1]}</span>`:''}${u.status!=='פעיל'?`<span class="pill">${u.status}</span>`:''}<span class="chev">‹</span></div>`}).join('')}</div>
@@ -305,12 +305,15 @@ function coachList(){const ts=S.users.filter(x=>x.role==='t');
 function pgEd(){if(pe>=S.progs.length)pe=0;const p=S.progs[pe];if(!p)return '';if(pd>=p.days.length)pd=0;const d=p.days[pd],gs=d?groups(d):[];
  return `<div class="card">${inp(`progs.${pe}.name`,p.name,'שם התוכנית')}</div>
  <div class="dt" style="margin:0 -2px 14px">${p.days.map((x,i)=>`<button class="${i===pd?'on':''}" onclick="pd=${i};render()">${x.name}</button>`).join('')}<button onclick="S.progs[${pe}].days.push({id:'d'+Date.now(),name:'יום חדש',ex:[]});pd=S.progs[${pe}].days.length-1;save();render()">+ יום</button></div>
- ${d?`<div class="row" style="margin-bottom:14px">${inp(`progs.${pe}.days.${pd}.name`,d.name,'שם היום')}<button class="g" onclick="dupDay(${pe},${pd})">שכפל</button><button class="x" onclick="if(confirm('למחוק את היום?')){S.progs[${pe}].days.splice(${pd},1);pd=0;save();render()}">מחק</button></div>
- ${grp(gs,(o,i)=>{const e=o.e,b=`progs.${pe}.days.${pd}.ex.${i}`;return `<details class="xd" ${OP.has(e.id)?'open':''} ontoggle="tgo('${e.id}',this.open)"><summary class="sum"><span class="lb">${o.label}</span><span style="flex:1;min-width:0"><b>${e.n||'תרגיל חדש'}</b><div class="mut">${e.sets} סטים · ${e.rep} · מנוחה ${fmtR(e.rest)}${e.ss&&i>0?' · סופרסט':''}</div></span></summary>
+ ${d?`<div class="row" style="margin-bottom:10px">${inp(`progs.${pe}.days.${pd}.name`,d.name,'שם היום')}<button class="g" onclick="dupDay(${pe},${pd})">שכפל</button><button class="x" onclick="if(confirm('למחוק את היום?')){S.progs[${pe}].days.splice(${pd},1);pd=0;save();render()}">מחק</button></div>
+ <textarea rows="2" placeholder="הערה כללית לאימון (תוצג למתאמן בראש האימון)" onchange="ed('progs.${pe}.days.${pd}.note',this.value);render()" style="margin-bottom:14px">${d.note||''}</textarea>
+ ${grp(gs,(o,i)=>{const e=o.e,b=`progs.${pe}.days.${pd}.ex.${i}`;return `<details class="xd" ${OP.has(e.id)?'open':''} ontoggle="tgo('${e.id}',this.open)"><summary class="sum"><span class="lb">${o.label}</span><span style="flex:1;min-width:0"><b>${e.n||'תרגיל חדש'}</b><div class="mut">${e.sets} סטים · ${e.rep} · מנוחה ${fmtR(e.rest)}${e.ss&&i>0?' · סופרסט':''}${(e.alts||[]).length?' · '+e.alts.length+' חלופות':''}</div></span></summary>
  <div class="body">${inp(b+'.n',e.n,'שם התרגיל')}<div class="ce"><div><div class="hd">סטים</div>${inp(b+'.sets',e.sets,'3','number')}</div><div><div class="hd">חזרות</div>${inp(b+'.rep',e.rep,'8-10')}</div><div><div class="hd">מנוחה (שנ׳)</div>${inp(b+'.rest',e.rest,'60','number')}</div></div><div class="row wr" style="gap:6px"><span class="mut">מנוחה מהירה:</span>${[30,45,60,90,120,180].map(x=>`<button class="opt ${num(e.rest)===x?'on':''}" onclick="ed('${b}.rest',${x});render()">${fmtR(x)}</button>`).join('')}</div>
  ${inp(b+'.video',e.video,'קישור לסרטון הדגמה')}${inp(b+'.tip',e.tip,'הערת טכניקה למתאמן')}
- <div class="row sp wr">${i>0?`<label class="c"><input type="checkbox" ${e.ss?'checked':''} onchange="ed('${b}.ss',this.checked);render()">סופרסט עם הקודם</label>`:'<span></span>'}<div class="row" style="gap:2px"><button class="g" aria-label="הזז למעלה" onclick="mv(${pe},${pd},${i},-1)">↑</button><button class="g" aria-label="הזז למטה" onclick="mv(${pe},${pd},${i},1)">↓</button><button class="g" onclick="dupEx(${pe},${pd},${i})">שכפל</button><button class="x" onclick="S.progs[${pe}].days[${pd}].ex.splice(${i},1);save();render()">מחק</button></div></div></div></details>`})}
- <button class="p" style="width:100%;padding:13px" onclick="const x=E('',3,'8-10',60);S.progs[${pe}].days[${pd}].ex.push(x);OP.add(x.id);save();render()">+ הוסף תרגיל</button><button style="width:100%;padding:13px;margin-top:8px" onclick="addSS(${pe},${pd})">+ הוסף סופרסט</button>`:''}`}
+ <div class="hd" style="margin-top:6px">חלופות (אם המכונה תפוסה)</div>${(e.alts||[]).map((a,k)=>`<div class="op" style="grid-template-columns:1fr 1fr 36px">${inp(b+'.alts.'+k+'.n',a.n,'שם התרגיל החלופי')}${inp(b+'.alts.'+k+'.tip',a.tip||'','הערה')}<button class="x" aria-label="מחק חלופה" onclick="S.progs[${pe}].days[${pd}].ex[${i}].alts.splice(${k},1);save();render()">✕</button></div>`).join('')}
+ <div class="row wr" style="gap:6px"><button class="g" onclick="altAdd(${pe},${pd},${i})">+ חלופה</button>${S.exs.length?`<select onchange="altLib(${pe},${pd},${i},this.value)"><option value="">+ חלופה מהמאגר</option>${S.exs.map(x=>`<option value="${x.id}">${x.n}</option>`).join('')}</select>`:''}</div>
+ <div class="row sp wr">${i>0?`<label class="c"><input type="checkbox" ${e.ss?'checked':''} onchange="ed('${b}.ss',this.checked);render()">סופרסט עם הקודם</label>`:'<span></span>'}<div class="row" style="gap:2px"><button class="g" aria-label="הזז למעלה" onclick="mv(${pe},${pd},${i},-1)">↑</button><button class="g" aria-label="הזז למטה" onclick="mv(${pe},${pd},${i},1)">↓</button><button class="g" onclick="dupEx(${pe},${pd},${i})">שכפל</button><button class="g" onclick="exSave(${pe},${pd},${i})">למאגר</button><button class="x" onclick="S.progs[${pe}].days[${pd}].ex.splice(${i},1);save();render()">מחק</button></div></div></div></details>`})}
+ <details class="card" style="margin-top:8px" ${OP.has('lib')?'open':''} ontoggle="tgo('lib',this.open)"><summary class="sum"><h2 style="margin:0">+ הוסף מהמאגר</h2><span class="mut">${S.exs.length} תרגילים</span></summary>${libPicker()}</details><button class="p" style="width:100%;padding:13px" onclick="const x=E('',3,'8-10',60);S.progs[${pe}].days[${pd}].ex.push(x);OP.add(x.id);save();render()">+ הוסף תרגיל ריק</button><button style="width:100%;padding:13px;margin-top:8px" onclick="addSS(${pe},${pd})">+ הוסף סופרסט</button>`:''}`}
 function plOne(pi){const p=S.plans[pi];return `<div class="card">${inp(`plans.${pi}.name`,p.name,'שם התפריט')}</div>
  ${p.meals.map((m,mi)=>{const k='m'+pi+'-'+mi,b=`plans.${pi}.meals.${mi}`;return `<details class="xd" ${OP.has(k)?'open':''} ontoggle="tgo('${k}',this.open)"><summary class="sum"><b style="flex:1">${m.n||'ארוחה'}</b><span class="mut">${m.opts.length} אפשרויות</span></summary><div class="body">${inp(b+'.n',m.n,'שם הארוחה')}
  <div class="op hd"><span>אפשרות</span><span>קלוריות</span><span>חלבון</span><span></span></div>
@@ -335,7 +338,7 @@ const tgl=(id,w)=>{const u=U(id),i=u.progs.indexOf(w);i<0?u.progs.push(w):u.prog
 const setPlan=(id,p)=>{const u=U(id);u.plan=p;u.ms=[];save();render()};
 async function addUser(){const g=i=>document.getElementById(i).value.trim(),n=g('nn'),us=g('nu'),p=g('np');
  if(!n||!us||p.length<6){err='יש למלא שם, שם משתמש באנגלית וסיסמה (לפחות 6 תווים)';return render()}
- try{const r=await api('POST','/api/users',{name:n,user:us,pass:p});S.users.push(r.user);(r.plans||[]).forEach(x=>S.plans.push(x));sent['u'+r.user.id]=JSON.stringify(pickF(r.user,CF));sent.lib=JSON.stringify({progs:S.progs,plans:S.plans});err='';cred={user:r.user.user,pass:p};sel=r.user.id;dtab='wk';ct='tr';render()}catch(e){err=e.status===409?'שם המשתמש תפוס':e.message;render()}}
+ try{const r=await api('POST','/api/users',{name:n,user:us,pass:p});S.users.push(r.user);(r.plans||[]).forEach(x=>S.plans.push(x));sent['u'+r.user.id]=JSON.stringify(pickF(r.user,CF));sent.lib=libJ();err='';cred={user:r.user.user,pass:p};sel=r.user.id;dtab='wk';ct='tr';render()}catch(e){err=e.status===409?'שם המשתמש תפוס':e.message;render()}}
 const saveNote=id=>{U(id).coachNote=document.getElementById('cn').value;save();render()};
 const setSt=(id,v)=>{U(id).status=v;save();render()};
 async function resetPw(id){if(!confirm('לאפס את הסיסמה של '+U(id).name+'? המתאמן ינותק ותתקבל סיסמה זמנית חדשה.'))return;try{const r=await api('POST','/api/users/'+id+'/password',{});cred={user:U(id).user,pass:r.pass};render()}catch(e){alert(e.message)}}
@@ -347,10 +350,10 @@ async function changePw(){const g=i=>{const e=document.getElementById(i);return 
  try{await api('POST','/api/me/password',{old:o,pass:n});['op','np2','np3'].forEach(i=>{const e=document.getElementById(i);if(e)e.value=''});flash('הסיסמה עודכנה ✓')}catch(e){flash(e.message)}}
 
 const dup=o=>JSON.parse(JSON.stringify(o)),rid=()=>Math.random().toString(36).slice(2,8);
-function reId(p){p.id='g'+rid();p.days.forEach(d=>{d.id='d'+rid();d.ex.forEach(e=>e.id='e'+rid())});return p}
+function reId(p){p.id='g'+rid();p.days.forEach(d=>{d.id='d'+rid();d.ex.forEach(e=>{e.id='e'+rid();(e.alts||[]).forEach(a=>a.id='a'+rid())})});return p}
 const mv=(a,b,i,n)=>{const x=S.progs[a].days[b].ex,j=i+n;if(j<0||j>=x.length)return;[x[i],x[j]]=[x[j],x[i]];save();render()};
-const dupEx=(a,b,i)=>{const x=S.progs[a].days[b].ex,c=dup(x[i]);c.id='e'+rid();x.splice(i+1,0,c);save();render()};
-const dupDay=(a,b)=>{const p=S.progs[a],c=dup(p.days[b]);c.id='d'+rid();c.name+=' (עותק)';c.ex.forEach(e=>e.id='e'+rid());p.days.splice(b+1,0,c);pd=b+1;save();render()};
+const dupEx=(a,b,i)=>{const x=S.progs[a].days[b].ex,c=dup(x[i]);c.id='e'+rid();(c.alts||[]).forEach(a=>a.id='a'+rid());x.splice(i+1,0,c);save();render()};
+const dupDay=(a,b)=>{const p=S.progs[a],c=dup(p.days[b]);c.id='d'+rid();c.name+=' (עותק)';c.ex.forEach(e=>{e.id='e'+rid();(e.alts||[]).forEach(a=>a.id='a'+rid())});p.days.splice(b+1,0,c);pd=b+1;save();render()};
 const editProg=id=>{pe=S.progs.findIndex(x=>x.id===id);pd=0;ct='pg';pm=1;sel=null;render()};
 const editPlan=id=>{lm=S.plans.findIndex(x=>x.id===id);ct='pl';sel=null;render()};
 function persProg(uid){const u=U(uid),src=progOf(u.progs[0])||S.progs[0];if(!src)return;const c=reId(dup(src));c.name=src.name+' – '+u.name;S.progs.push(c);u.progs=[c.id];editProg(c.id)}
@@ -376,8 +379,8 @@ function beginW(pid,di){const u=me(),p=progOf(pid);u.act={pid,did:p.days[di].id,
 function viewW(pid,di){const u=me();cp=Math.max(0,myProgs(u).findIndex(x=>x.id===pid));cd=di;tab='train';render();window.scrollTo(0,0)}
 function cancelAct(){if(!confirm('לבטל את האימון? הנתונים שהוזנו יימחקו.'))return;const u=me();delete u.cur[u.act.did];u.act=null;fin=false;save();render()}
 function setRpe(n){const u=me(),t=document.getElementById('fn');if(t)u.act.note=t.value;u.act.rpe=n;save();render()}
-function flash(t,ms=2000){toast=t;render();setTimeout(()=>{toast='';render()},ms)}
-function saveWorkout(){const u=me(),a=u.act,p=progOf(a.pid),d=p.days.find(x=>x.id===a.did),c=u.cur[d.id]||{},t=document.getElementById('fn');if(t)a.note=t.value;
+let flashT=null;function flash(t,ms=2000){toast=t;render();clearTimeout(flashT);flashT=setTimeout(()=>{toast='';render()},ms)}
+function saveWorkout(){const u=me(),a=u.act,p=progOf(a.pid),d=effDay(u,p.days.find(x=>x.id===a.did)),c=u.cur[d.id]||{},t=document.getElementById('fn');if(t)a.note=t.value;
  if(!a.rpe)return flash('בחר רמת קושי כדי לשמור');
  u.hist[d.id]=u.hist[d.id]||{};u.pr=u.pr||{};const items=[],prs=[];
  d.ex.forEach(e=>{const l=c[e.id];if(!l)return;const done=l.sets.filter(x=>x.d&&!x.wu);if(done.length)u.hist[d.id][e.id]=done.map(x=>[x.w,x.r]);
@@ -385,7 +388,7 @@ function saveWorkout(){const u=me(),a=u.act,p=progOf(a.pid),d=p.days.find(x=>x.i
   done.forEach(x=>{const w=num(x.w),r=num(x.r);if(x.pr&&(!top||w>top.w||(w===top.w&&r>top.r)))top={n:e.n,w,r};if(w>R.maxW)R.maxW=w;if(w>0&&r>(R.byW[w]||0))R.byW[w]=r});
   if(top)prs.push(top);items.push({n:e.n,sets:done.map(x=>[x.w,x.r,x.x]),note:l.note})});
  const rec={name:p.name+' · '+d.name,items,prs,vol:dayVol(u,d.id),mins:Math.max(1,Math.round((Date.now()-a.t0)/60000)),rpe:a.rpe,note:a.note||'',date:Date.now()};
- u.last=rec;(u.log=u.log||[]).push(rec);u.lastDone={pid:p.id,di:p.days.indexOf(d)};delete u.cur[d.id];u.act=null;fin=false;u.lastTrain=0;rest=0;clearInterval(tick);OPN.clear();open=null;cd=null;tab='home';save();flash(prs.length?'האימון נשמר ✓ · שברת '+prs.length+' שיאים':'האימון נשמר ✓');window.scrollTo(0,0)}
+ u.last=rec;(u.log=u.log||[]).push(rec);u.lastDone={pid:p.id,di:p.days.findIndex(x=>x.id===d.id)};delete u.cur[d.id];u.act=null;fin=false;u.lastTrain=0;rest=0;clearInterval(tick);OPN.clear();swo=null;open=null;cd=null;tab='home';save();flash(prs.length?'האימון נשמר ✓ · שברת '+prs.length+' שיאים':'האימון נשמר ✓');window.scrollTo(0,0)}
 function saveWeight(id){const el=document.getElementById(id),v=parseFloat(el&&el.value);if(!v)return flash('הזן משקל תקין');const u=me(),k=todayKey(),l=u.weights[u.weights.length-1];
  if(l&&l[0]===k)l[1]=v;else u.weights.push([k,v]);save();flash('השקילה נשמרה ✓')}
 setInterval(()=>{const e=document.getElementById('el'),u=S.me&&me();if(e&&u&&u.act)e.textContent=elapsed(u.act)},1000);
@@ -413,26 +416,90 @@ function settings(){const a=bkAge(),me_=me();
  <div class="card"><h2>גיבוי נתונים</h2><div class="srow"><div><b>הורד גיבוי מלא</b><span class="mut">${a===null?'טרם בוצע גיבוי במכשיר הזה':'גיבוי אחרון: '+(a===0?'היום':'לפני '+a+' ימים')}</span></div>${a===null||a>=7?'<span class="pill warn">מומלץ</span>':''}<a class="mut" href="/api/export" download onclick="bkDone()" style="border:1px solid var(--line);border-radius:12px;padding:10px 14px;color:var(--ink)">הורד</a></div></div>
  <div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית. נפתח כמו אפליקציה</span></div></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
 function tSettings(u){return `<div class="top row sp"><h1>הגדרות</h1><button class="g" onclick="tab='home';render()">חזרה</button></div>${pwCard(6)}<div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית</span></div></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
+
+
+function altAdd(p,d,i,a){const e=S.progs[p].days[d].ex[i];(e.alts=e.alts||[]).push(a||{id:'a'+rid(),n:'',tip:''});OP.add(e.id);save();render()}
+function altLib(p,d,i,id){const x=S.exs.find(y=>y.id===id);if(!x)return;altAdd(p,d,i,{id:'a'+rid(),n:x.n,tip:x.tip||'',video:x.video||'',sets:x.sets||0,rep:x.rep||'',rest:x.rest||0})}
+const BASE_EX=[
+['לחיצת חזה במוט','חזה',4,'6-8',120,'שכב עם כתפיים צמודות לספסל, שכמות מכווצות אחורה. הורד את המוט לאמצע החזה, מרפקים בזווית 45° מהגוף, ודחוף למעלה בלי לנתק את הישבן מהספסל.'],
+['לחיצת חזה במשקולות בשיפוע','חזה',3,'8-10',90,'שיפוע ספסל 30°. הורד לאט (2-3 שניות) עד מתיחה בחזה העליון, ודחוף למעלה בלי לטרוק את המשקולות.'],
+['פרפר בכבלים','חזה',3,'12-15',60,'צעד קדימה, גב ישר, מרפק מעט כפוף וקבוע. הבא את הידיים יחד מול החזה וכווץ שנייה.'],
+['שכיבות סמיכה','חזה',3,'10-15',60,'גוף ישר כמו קרש, בטן ואגן מכווצים. רד עד שהחזה כמעט נוגע ברצפה, מרפקים בזווית 45°.'],
+['לחיצת כתפיים בישיבה','כתפיים',3,'8-10',90,'גב צמוד לספסל, בטן מכווצת. דחוף ישר מעל הראש בלי לקשת את הגב, והורד עד גובה האוזניים.'],
+['הרמות צד','כתפיים',3,'12-15',45,'משקל קל, מרפקים מעט כפופים. הרם עד גובה הכתפיים בלבד, בלי להניף עם הגוף, והורד לאט.'],
+['הרמות אחוריות (כתף אחורית)','כתפיים',3,'12-15',45,'רכון קדימה עם גב ישר. הרם את הידיים לצדדים והוביל עם המרפקים, כווץ בין השכמות.'],
+['מתח','גב',3,'6-10',90,'אחיזה מעט רחבה מהכתפיים. התחל מתלייה ישרה, משוך את המרפקים כלפי הרצפה עד שהסנטר מעל המוט. בלי תנופה.'],
+['משיכת פולי עליון','גב',3,'8-12',90,'הישען מעט אחורה, חזה מורם. משוך את המוט לחזה העליון עם המרפקים כלפי מטה, ושחרר לאט עד מתיחה מלאה.'],
+['חתירה עם מוט','גב',3,'8-10',90,'רכון קדימה כ-45°, גב ניטרלי. משוך את המוט לבטן התחתונה, כווץ שכמות והורד בשליטה.'],
+['חתירה בכבל בישיבה','גב',3,'10-12',75,'חזה גבוה, גב ישר. משוך את הידית לבטן, מרפקים צמודים לגוף, כווץ שנייה בסוף התנועה.'],
+['חתירה במשקולת ביד אחת','גב',3,'10-12',75,'סמוך עם יד וברך על ספסל, גב מקביל לרצפה. משוך את המשקולת לכיוון הירך והובל עם המרפק.'],
+['סקוואט','רגליים',4,'6-8',120,'רגליים ברוחב הכתפיים, חזה גבוה, בטן מכווצת. רד עד שהירכיים מקבילות לרצפה לפחות, ברכיים בכיוון הבהונות, ודחוף דרך כל כף הרגל.'],
+['לחיצת רגליים','רגליים',3,'10-12',90,'גב וישבן צמודים למושב. רד עד זווית ברך של 90° בלי שהאגן יתקפל, ודחוף בלי לנעול ברכיים.'],
+['מכרעים','רגליים',3,'10 לכל רגל',75,'צעד ארוך קדימה, פלג גוף עליון זקוף. רד עד שהברך האחורית כמעט נוגעת ברצפה, ודחוף דרך העקב הקדמי.'],
+['דדליפט רומני','רגליים',3,'8-10',90,'ברכיים מעט כפופות וקבועות, דחוף את האגן אחורה. המוט קרוב לרגליים, גב ישר, רד עד מתיחה בהמסטרינג.'],
+['כפיפת ברכיים בשכיבה','רגליים',3,'10-12',60,'אגן צמוד לספסל. כפוף עד כיווץ מלא בהמסטרינג, והורד לאט (3 שניות).'],
+['יישור ברכיים','רגליים',3,'12-15',60,'התאם את המושב כך שהברך מול ציר המכונה. יישר עד סוף, כווץ שנייה, והורד לאט.'],
+['הרמות עקבים (תאומים)','רגליים',4,'12-15',45,'טווח מלא: ירידה עמוקה עם מתיחה, עלייה מלאה לקצות האצבעות ועצירה של שנייה למעלה.'],
+['גשר אגן (היפ תראסט)','רגליים',3,'8-12',90,'גב עליון על ספסל, סנטר צמוד לחזה. דחוף את האגן למעלה עד קו ישר מהכתפיים לברכיים, וכווץ ישבן שנייה.'],
+['כפיפת מרפקים עם משקולות','ידיים',3,'8-12',60,'מרפקים צמודים לגוף ולא זזים קדימה. כפוף עד כיווץ מלא, והורד לאט בלי להתנדנד.'],
+['כפיפת פטישים','ידיים',3,'10-12',60,'אחיזה ניטרלית (כף יד פנימה). מרפקים קבועים, כפיפה מלאה, ירידה איטית.'],
+['פשיטת מרפקים בכבל','ידיים',3,'10-15',60,'מרפקים צמודים לצלעות. יישר עד הסוף, כווץ שנייה, והחזר לאט עד זווית 90°.'],
+['לחיצה צרפתית','ידיים',3,'8-12',75,'שכב עם מוט EZ מעל המצח. כופף רק את המרפקים (הם מצביעים לתקרה), והורד עד מתיחה בטרייספס.'],
+['פלאנק','בטן',3,'30-60 שנ׳',45,'מרפקים מתחת לכתפיים, גוף בקו ישר. כווץ ישבן ובטן, אל תיתן לאגן לצנוח או לעלות.'],
+['הרמות רגליים בתלייה','בטן',3,'10-15',60,'תלה בלי תנופה. הרם את הרגליים בעזרת הבטן עם הטיית אגן אחורה, והורד לאט.'],
+['כפיפות בטן בכבל','בטן',3,'12-15',60,'כרע ברך מול הכבל, ידיים ליד הראש. גלגל את החוליות לכיוון האגן וכווץ את הבטן, לא למשוך עם הידיים.']
+].map(a=>({n:a[0],g:a[1],sets:a[2],rep:a[3],rest:a[4],tip:a[5],video:''}));
+function loadBase(){let n=0;BASE_EX.forEach(b=>{if(!S.exs.some(x=>x.n.trim()===b.n)){S.exs.push({id:'x'+rid(),...b});n++}});save();render();flash(n?n+' תרגילים נוספו למאגר ✓':'כל תרגילי הבסיס כבר במאגר')}
+/* ---------- exercise library ---------- */
+const EXG=['חזה','גב','כתפיים','רגליים','ידיים','בטן','אחר'];let exf='';
+const exInfo=e=>(e.sets||'?')+'×'+(e.rep||'?')+' · מנוחה '+fmtR(e.rest||0);
+function libPicker(){const L=S.exs;if(!L.length)return '<div class="mut" style="margin-top:12px">המאגר ריק. אפשר להוסיף תרגילים בלשונית "מאגר תרגילים" או בלחיצה על "למאגר" בתרגיל.</div>';
+ return `<div style="margin-top:12px;display:grid;gap:8px"><input placeholder="חיפוש תרגיל" oninput="libFilter(this.value)">${EXG.filter(g=>L.some(e=>(e.g||'אחר')===g)).map(g=>`<div class="hd lr" data-g="1">${g}</div>${L.filter(e=>(e.g||'אחר')===g).map(e=>`<div class="row sp lr" data-t="${(e.n+' '+g).replace(/"/g,'')}"><div style="min-width:0"><b>${e.n}</b><div class="mut">${exInfo(e)}${e.tip?' · '+e.tip:''}</div></div><button onclick="exAdd('${e.id}')">הוסף</button></div>`).join('')}`).join('')}</div>`}
+function libFilter(q){q=q.trim();document.querySelectorAll('.lr[data-t]').forEach(r=>{r.style.display=!q||r.dataset.t.includes(q)?'':'none'})}
+function exAdd(id){const e=S.exs.find(x=>x.id===id);if(!e)return;const x=E(e.n,e.sets||3,e.rep||'8-10',e.rest||60,e.tip||'',false,e.video||'');S.progs[pe].days[pd].ex.push(x);OP.add(x.id);save();render();flash(e.n+' נוסף ✓')}
+function exSave(p,d,i){const e=S.progs[p].days[d].ex[i];if(!e.n)return flash('יש לתת שם לתרגיל');const o=S.exs.find(x=>x.n.trim()===e.n.trim()),v={n:e.n,g:o?o.g:'אחר',sets:num(e.sets),rep:e.rep,rest:num(e.rest),tip:e.tip||'',video:e.video||''};if(o)Object.assign(o,v);else S.exs.push({id:'x'+rid(),...v});save();flash(o?'התרגיל עודכן במאגר ✓':'נוסף למאגר ✓')}
+function exNew(){const g=i=>document.getElementById(i).value.trim(),n=g('xn');if(!n)return flash('יש להזין שם תרגיל');S.exs.push({id:'x'+rid(),n,g:g('xg'),sets:num(g('xs'))||3,rep:g('xr')||'8-10',rest:num(g('xt'))||60,tip:g('xp'),video:g('xv')});save();render();flash('נוסף למאגר ✓')}
+function exView(){const L=S.exs.map((e,i)=>[e,i]).filter(([e])=>!exf||(e.g||'אחר')===exf);
+ return `<div class="row sp" style="margin-bottom:12px"><div><h2 class="h2" style="margin:0">מאגר תרגילים</h2><div class="mut">תרגילים עם הערות טכניקה מראש, לבנייה מהירה של תוכניות</div></div><span class="mut">${S.exs.length} תרגילים</span></div>
+ <div class="card" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>תרגילי בסיס</b><div class="mut">27 תרגילים נפוצים עם הוראות ביצוע בעברית. אפשר לערוך ולמחוק אחר כך. תרגילים שכבר קיימים לא יוכפלו.</div></div><button class="p" onclick="loadBase()">טען למאגר</button></div>
+ <details class="card" ${OP.has('exn')||!S.exs.length?'open':''} ontoggle="tgo('exn',this.open)"><summary class="sum"><h2 style="margin:0">הוספת תרגיל</h2></summary><div style="margin-top:12px;display:grid;gap:8px"><input id="xn" placeholder="שם התרגיל"><select id="xg">${EXG.map(g=>`<option>${g}</option>`).join('')}</select><div class="ce"><input id="xs" type="number" placeholder="סטים"><input id="xr" placeholder="חזרות (8-10)"><input id="xt" type="number" placeholder="מנוחה (שנ׳)"></div><input id="xp" placeholder="הערת טכניקה למתאמן"><input id="xv" placeholder="קישור לסרטון הדגמה"><button class="p" onclick="exNew()">הוסף למאגר</button></div></details>
+ <div class="row wr" style="gap:6px;margin:14px 0"><button class="opt ${!exf?'on':''}" onclick="exf='';render()">הכל</button>${EXG.map(g=>`<button class="opt ${exf===g?'on':''}" onclick="exf='${g}';render()">${g}</button>`).join('')}</div>
+ ${L.map(([e,i])=>{const b='exs.'+i;return `<details class="xd" ${OP.has(e.id)?'open':''} ontoggle="tgo('${e.id}',this.open)"><summary class="sum"><span style="flex:1;min-width:0"><b>${e.n||'תרגיל'}</b><div class="mut">${e.g||'אחר'} · ${exInfo(e)}</div></span></summary><div class="body">${inp(b+'.n',e.n,'שם התרגיל')}<select onchange="ed('${b}.g',this.value);render()">${EXG.map(g=>`<option ${(e.g||'אחר')===g?'selected':''}>${g}</option>`).join('')}</select><div class="ce"><div><div class="hd">סטים</div>${inp(b+'.sets',e.sets,'3','number')}</div><div><div class="hd">חזרות</div>${inp(b+'.rep',e.rep,'8-10')}</div><div><div class="hd">מנוחה (שנ׳)</div>${inp(b+'.rest',e.rest,'60','number')}</div></div>${inp(b+'.tip',e.tip||'','הערת טכניקה')}${inp(b+'.video',e.video||'','קישור לסרטון')}<div class="row" style="justify-content:flex-end"><button class="x" onclick="if(confirm('למחוק מהמאגר?')){S.exs.splice(${i},1);save();render()}">מחק</button></div></div></details>`}).join('')||'<div class="card mut">אין תרגילים בקטגוריה הזו</div>'}`}
 function overview(){const ts=S.users.filter(x=>x.role==='t'&&x.status==='פעיל'),wk=Date.now()-7*864e5;
  const al=ts.flatMap(u=>alerts(u).map(a=>[u,a])),rec=ts.flatMap(u=>(u.log||[]).map(r=>[u,r])).sort((a,b)=>b[1].date-a[1].date).slice(0,6),r7=ts.flatMap(u=>(u.log||[]).filter(r=>r.date>wk)),avg=r7.length?(r7.reduce((s,r)=>s+r.rpe,0)/r7.length).toFixed(1):'—';
  return `${today(ts)}<div class="stats s4"><div><b>${ts.length}</b><span>מתאמנים פעילים</span></div><div><b>${ts.filter(u=>lastTrain(u)<=7).length}</b><span>התאמנו השבוע</span></div><div><b>${al.length}</b><span>התראות</span></div><div><b>${avg}</b><span>קושי ממוצע (7 ימים)</span></div></div>
  <h2 class="sec" style="margin-top:6px">דורש תשומת לב</h2><div class="card list">${al.map(([u,a])=>`<div class="li" role="button" tabindex="0" onclick="openT('${u.id}')"><span class="pill ${a[0]}">${u.name}</span><div style="flex:1">${a[1]}</div><span class="chev">‹</span></div>`).join('')||'<div class="li mut">הכל תקין</div>'}</div>
  <h2 class="sec">פעילות אחרונה</h2><div class="card list">${rec.map(([u,r])=>`<div class="li" role="button" tabindex="0" onclick="openT('${u.id}')"><span class="av">${u.name.trim()[0]}</span><div style="flex:1;min-width:0"><b>${u.name} · ${r.name.split('·').pop().trim()}</b><div class="mut">${ago(r.date)} · נפח ${r.vol.toLocaleString()} · ${r.mins} דק׳ · קושי ${r.rpe}/10${(r.prs||[]).length?' · 🏆 '+r.prs.length+' שיאים':''}</div>${r.note?`<div>${r.note}</div>`:''}</div><span class="chev">‹</span></div>`).join('')||'<div class="li mut">עדיין אין אימונים שנשמרו</div>'}</div>`}
-function dWk(u){const ix=S.progs.findIndex(p=>p.owner===u.id),tp=S.progs.filter(p=>!p.owner);
- const pick=`<div class="mut" style="margin-bottom:10px">בחר תבנית כנקודת פתיחה. העותק שייך רק ל${u.name} ואפשר לערוך אותו חופשי, בלי לשנות את התבנית.${ix>=0?' החלפה תמחק את התוכנית האישית הנוכחית.':''}</div>${tp.map(t=>`<div class="row sp" style="padding:6px 0"><span>${t.name} <span class="mut">· ${t.days.length} ימים</span></span><button onclick="${ix>=0?"if(!confirm('להחליף את התוכנית האישית?'))return;":''}startProg('${u.id}','${t.id}')">השתמש</button></div>`).join('')}<button class="g" onclick="startProg('${u.id}','')">+ התחל מאפס</button>`;
+function dWk(u){const ix=S.progs.findIndex(p=>p.owner===u.id),tp=S.progs.filter(p=>!p.owner),others=S.progs.filter(p=>p.owner&&p.owner!==u.id&&U(p.owner));
+ const pick=`<div class="mut" style="margin-bottom:10px">בחר תבנית כנקודת פתיחה. העותק שייך רק ל${u.name} ואפשר לערוך אותו חופשי, בלי לשנות את התבנית.${ix>=0?' החלפה תמחק את התוכנית האישית הנוכחית.':''}</div>${tp.map(t=>`<div class="row sp" style="padding:6px 0"><span>${t.name} <span class="mut">· ${t.days.length} ימים</span></span><button onclick="${ix>=0?"if(!confirm('להחליף את התוכנית האישית?'))return;":''}startProg('${u.id}','${t.id}')">השתמש</button></div>`).join('')}<button class="g" onclick="startProg('${u.id}','')">+ התחל מאפס</button>${others.length?`<div class="mut" style="margin:14px 0 8px">או העתק מתוכנית של מתאמן אחר:</div>${others.map(o=>`<div class="row sp" style="padding:6px 0"><span>${U(o.owner).name} <span class="mut">· ${o.days.length} ימים</span></span><button onclick="progCopy('${o.owner}','${u.id}')">העתק</button></div>`).join('')}`:''}`;
  if(ix<0)return `<div class="card"><h2>בניית תוכנית אימון ל${u.name}</h2>${pick}</div>`;
- pe=ix;return `<div style="margin-bottom:12px"><b>התוכנית האישית של ${u.name}</b><div class="mut">שינויים נשמרים אוטומטית ומופיעים אצל המתאמן מיד</div></div>${pgEd()}<details class="card" style="margin-top:16px" ${OP.has('pk')?'open':''} ontoggle="tgo('pk',this.open)"><summary class="sum"><h2 style="margin:0">טעינה מתבנית אחרת</h2></summary><div style="margin-top:12px">${pick}</div></details>`}
+ pe=ix;return `<div style="margin-bottom:12px"><b>התוכנית האישית של ${u.name}</b><div class="mut">שינויים נשמרים אוטומטית ומופיעים אצל המתאמן מיד</div></div>${pgEd()}<details class="card" style="margin-top:16px" ${OP.has('cp')?'open':''} ontoggle="tgo('cp',this.open)"><summary class="sum"><h2 style="margin:0">העתקה ושיתוף</h2></summary><div style="margin-top:12px;display:grid;gap:10px"><button onclick="progToTemplate('${u.id}')">שמור כתבנית כללית</button><div class="mut">או העתק את התוכנית למתאמן אחר:</div>${S.users.filter(x=>x.role==='t'&&x.id!==u.id).map(x=>`<div class="row sp"><span>${x.name}${S.progs.some(p=>p.owner===x.id)?' <span class="mut">· יש תוכנית, תוחלף</span>':''}</span><button onclick="progCopy('${u.id}','${x.id}')">העתק</button></div>`).join('')||'<div class="mut">אין מתאמנים נוספים</div>'}</div></details><details class="card" style="margin-top:16px" ${OP.has('pk')?'open':''} ontoggle="tgo('pk',this.open)"><summary class="sum"><h2 style="margin:0">טעינה מתבנית אחרת</h2></summary><div style="margin-top:12px">${pick}</div></details>`}
 function dNu(u){const ix=S.plans.findIndex(p=>p.owner===u.id),tp=S.plans.filter(p=>!p.owner);
  const pick=`<div class="mut" style="margin-bottom:10px">בחר תבנית כנקודת פתיחה. העותק שייך רק ל${u.name} ואפשר לערוך אותו חופשי.${ix>=0?' החלפה תמחק את התפריט האישי הנוכחי.':''}</div>${tp.map(t=>`<div class="row sp" style="padding:6px 0"><span>${t.name} <span class="mut">· ${t.meals.length} ארוחות</span></span><button onclick="${ix>=0?"if(!confirm('להחליף את התפריט האישי?'))return;":''}startPlan('${u.id}','${t.id}')">השתמש</button></div>`).join('')}<button class="g" onclick="startPlan('${u.id}','')">+ התחל מאפס</button>`;
  if(ix<0)return `<div class="card"><h2>בניית תפריט ל${u.name}</h2>${pick}</div>`;
  return `<div style="margin-bottom:12px"><b>התפריט האישי של ${u.name}</b><div class="mut">שינויים נשמרים אוטומטית ומופיעים אצל המתאמן מיד</div></div>${plOne(ix)}<details class="card" style="margin-top:16px" ${OP.has('pk2')?'open':''} ontoggle="tgo('pk2',this.open)"><summary class="sum"><h2 style="margin:0">טעינה מתבנית אחרת</h2></summary><div style="margin-top:12px">${pick}</div></details>`}
 function startProg(uid,tid){const u=U(uid);S.progs=S.progs.filter(p=>p.owner!==uid);const t=tid&&progOf(tid),c=t?dup(t):{days:[{id:'d'+rid(),name:'יום 1',ex:[]}]};c.id='g'+rid();c.owner=uid;c.name=(t?t.name:'תוכנית')+' – '+u.name;S.progs.push(c);u.progs=[c.id];u.act=null;pd=0;save();render()}
+const cloneProg=(src,name)=>{const c=dup(src);c.id='g'+rid();c.name=name;c.days.forEach(d=>{d.id='d'+rid();d.ex.forEach(e=>{e.id='e'+rid();(e.alts||[]).forEach(a=>a.id='a'+rid())})});return c};
+function progToTemplate(uid){const sp=S.progs.find(p=>p.owner===uid);if(!sp)return;const c=cloneProg(sp,sp.name.split(' – ')[0]);delete c.owner;S.progs.push(c);save();render();flash('נשמר כתבנית: '+c.name+' ✓')}
+function progCopy(fromUid,toUid){const sp=S.progs.find(p=>p.owner===fromUid),t=U(toUid);if(!sp||!t)return;if(S.progs.some(p=>p.owner===toUid)&&!confirm('למתאמן '+t.name+' כבר יש תוכנית אישית. להחליף אותה?'))return;S.progs=S.progs.filter(p=>p.owner!==toUid);const c=cloneProg(sp,sp.name.split(' – ')[0]+' – '+t.name);c.owner=toUid;S.progs.push(c);t.progs=[c.id];t.act=null;save();render();flash('התוכנית הועתקה ל'+t.name+' ✓')}
 function startPlan(uid,tid){const u=U(uid);S.plans=S.plans.filter(p=>p.owner!==uid);const t=tid&&S.plans.find(p=>p.id===tid),c=t?dup(t):{meals:[{n:'ארוחת בוקר',opts:[O('',0,0)]}]};c.id='p'+rid();c.owner=uid;c.name=(t?t.name:'תפריט')+' – '+u.name;S.plans.push(c);u.plan=c.id;u.ms=[];save();render()}
 
 let restTotal=0,restName='';
 const fmtT=n=>Math.floor(n/60)+':'+String(n%60).padStart(2,'0');
 function beep(){try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}try{const C=window.AudioContext||window.webkitAudioContext,c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(c.currentTime+.35)}catch(e){}}
-function exOf(eid){for(const p of S.progs)for(const d of p.days)for(const e of d.ex)if(e.id===eid)return e;return null}
+const altEx=(e,a)=>({...e,id:a.id,n:a.n,tip:a.tip||'',video:a.video||'',sets:a.sets||e.sets,rep:a.rep||e.rep,rest:a.rest||e.rest,orig:e.id,on:e.n,swapped:1});
+function exOf(eid){for(const p of S.progs)for(const d of p.days)for(const e of d.ex){if(e.id===eid)return e;const a=(e.alts||[]).find(x=>x.id===eid);if(a)return altEx(e,a)}return null}
+const effEx=(u,e)=>{const sw=u.act&&u.act.sw&&u.act.sw[e.id],a=sw&&(e.alts||[]).find(x=>x.id===sw);return a?altEx(e,a):e};
+const effDay=(u,d)=>({...d,ex:d.ex.map(e=>effEx(u,e))});
+let swo=null;
+function swapEx(oid,aid){const u=me(),a=u.act;if(!a)return;const d=progOf(a.pid).days.find(x=>x.id===a.did),base=d.ex.find(x=>x.id===oid),cur=effEx(u,base),l=(u.cur[d.id]||{})[cur.id];
+ if(l&&l.sets.some(s=>s.d))return flash('כבר ביצעת סטים בתרגיל הזה');if(l)delete u.cur[d.id][cur.id];
+ a.sw=a.sw||{};if(aid)a.sw[oid]=aid;else delete a.sw[oid];swo=null;const n=effEx(u,base);OPN.add(n.id);save();render();flash('התרגיל הוחלף ל'+n.n+' ✓')}
+function swapBox(u,d,e){const base=e.orig||e.id,b=(progOf(u.act.pid).days.find(x=>x.id===d.id).ex.find(x=>x.id===base));if(!b||!(b.alts||[]).length)return '';
+ if(swo!==base)return `<div class="row" style="margin-bottom:10px"><button class="g" onclick="swo='${base}';render()">החלפת תרגיל</button>${e.swapped?`<span class="mut">הוחלף מ: ${e.on}</span>`:''}</div>`;
+ const opts=[...(e.swapped?[{id:'',n:b.n,tip:b.tip}]:[]),...b.alts.filter(a=>a.id!==e.id)];
+ return `<div class="card" style="margin:0 0 12px;border-color:var(--acc)"><div class="row sp" style="margin-bottom:8px"><b>בחר תרגיל חלופי</b><button class="g" onclick="swo=null;render()">סגור</button></div>${opts.map(a=>`<div class="row sp" style="padding:6px 0;gap:10px"><div style="min-width:0"><b>${a.n||'ללא שם'}</b>${a.tip?`<div class="mut">${a.tip}</div>`:''}</div><button class="p" onclick="swapEx('${base}','${a.id}')">${a.id===''?'חזרה':'החלף'}</button></div>`).join('')||'<div class="mut">אין חלופות נוספות</div>'}</div>`}
+
 const repMin=r=>{const m=String(r||'').match(/\d+/);return m?+m[0]:1};
 function bestOf(u,did,eid,skip){const b={maxW:0,byW:{}},pr=(u.pr||{})[eid];if(pr){b.maxW=pr.maxW;Object.assign(b.byW,pr.byW)}
  ((u.cur[did]||{})[eid]||{sets:[]}).sets.forEach((x,i)=>{if(i===skip||!x.d||x.wu)return;const w=num(x.w),r=num(x.r);if(w>b.maxW)b.maxW=w;if(w>0&&r>(b.byW[w]||0))b.byW[w]=r});return b}
