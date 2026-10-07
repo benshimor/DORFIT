@@ -312,7 +312,7 @@ async function runReminders(now) {
   for (const r of rows) {
     const data = J(r.data);
     if ((data.status && data.status !== 'פעיל') || data.remOff) continue;
-    const okT = v => /^\d\d:\d\d$/.test(v || ''); const t = okT(data.remT) ? data.remT : okT(data.rtime) ? data.rtime : '10:00';
+    const okT = v => /^\d\d:\d\d$/.test(v || ''); const t = okT(data.rtime) ? data.rtime : okT(data.remT) ? data.remT : '10:00';
     if (hm < t) continue;
     if (!(data.checkin && data.checkin.done && data.day === d) && !logged(r.id, 'ci', d)) {
       markLogged(r.id, 'ci', d);
