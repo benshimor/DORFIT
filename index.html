@@ -6,7 +6,6 @@
 <title>DOR FIT</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0b0d10">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script>try{var t=localStorage.getItem("dfTheme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
@@ -70,8 +69,8 @@ h1,h2{margin:0}.h1{font-size:24px;font-weight:700;letter-spacing:-.3px}.h2{font-
 .timer{position:fixed;bottom:132px;inset-inline:16px;max-width:508px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:16px;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:6}.timer b{font-size:22px;font-variant-numeric:tabular-nums}.timer button{background:rgba(128,128,128,.25);color:inherit}
 .grid{column-width:300px;column-gap:14px}.grid>*{break-inside:avoid;display:block}
 .rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:6px 0 10px}.rpe button{padding:12px 0;font-size:16px}.rpe button.on{background:var(--acc);color:#fff}
-.logo{display:inline-flex;align-items:baseline;direction:ltr;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-weight:400;letter-spacing:2px;font-size:30px;line-height:1}.logo b,.logo i{font-weight:400;font-style:normal}.logo i,.logo u{color:var(--acc);text-decoration:none}.logo u{margin:0 3px}
-.logo.big{font-size:44px}
+.logo{display:inline-flex;align-items:baseline;direction:ltr;font-weight:900;letter-spacing:3px;font-size:22px;line-height:1}.logo b,.logo i{font-weight:900;font-style:normal}.logo i,.logo u{color:var(--acc);text-decoration:none}.logo u{margin:0 3px}
+.logo.big{font-size:38px}
 .lgn{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(520px 380px at 50% 0%,color-mix(in srgb,var(--acc) 30%,transparent),transparent)}.lgi{width:100%;max-width:360px;display:grid;gap:12px}.lgm{text-align:center;margin-bottom:22px}
 .nx{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sec{font-size:19px;font-weight:700;margin:22px 0 12px}
 .stats.s4{grid-template-columns:repeat(2,1fr)}@media(min-width:600px){.stats.s4{grid-template-columns:repeat(4,1fr)}}
@@ -104,16 +103,19 @@ label.c{display:flex;gap:8px;align-items:center;padding:4px 0}label.c input{widt
 @media (prefers-reduced-motion:reduce){.cel .cf{display:none}}
 .tb{background:var(--card);border:1px solid var(--line);border-radius:50%;width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;flex:none}.tb svg{width:20px;height:20px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .seg{display:flex;gap:6px}.seg button{flex:1}.seg button.on{background:var(--acc);color:#fff}
-/* login v3 */
-.lgn{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:36px 30px;background:var(--bg)}
-.lgi{width:100%;max-width:360px;display:grid;gap:20px}
-.lgm{text-align:start}.lgw{font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:clamp(110px,34vw,150px);line-height:.82;letter-spacing:2px;direction:ltr;text-align:left;color:var(--ink)}.lgw span{color:var(--acc)}.lgw i{display:block;width:60px;height:8px;background:var(--acc);margin-top:16px}
-.lgt{color:var(--mut);font-size:15px;margin:0}
-.lgl{display:grid;gap:4px;font-size:13px;color:var(--mut)}
-.lgi input{background:transparent;border:0;border-bottom:2px solid var(--line);border-radius:0;padding:12px 0;font-size:17px;color:var(--ink);width:100%;box-sizing:border-box}.lgi input:focus{outline:none;border-bottom-color:var(--acc)}
-.pwr{position:relative}.pwr input{padding-inline-end:56px}.pwr button{position:absolute;inset-inline-end:0;top:50%;transform:translateY(-50%);background:none;color:var(--mut);padding:8px 4px;font-size:13px}
-.lgb{width:100%;padding:17px;font-size:18px;font-weight:900;letter-spacing:1px;border-radius:4px}
+/* login v5 pulse */
+.lgn{--bg:#07090d;--ink:#fff;--mut:#aab3c0;--line:rgba(255,255,255,.14);--acc:#4d84ff;position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;justify-content:space-between;padding:56px 26px 40px;background:#07090d;color:#fff}
+.lgbg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.lgp{stroke-dasharray:900;animation:lgd 2.4s ease-out both}@keyframes lgd{from{stroke-dashoffset:900}to{stroke-dashoffset:0}}
+.lgi{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:space-between;flex:1;gap:28px;width:100%;max-width:380px;margin:0 auto}
+.lgm{text-align:start}.lgw{font-weight:900;font-size:clamp(36px,11vw,46px);letter-spacing:5px;direction:ltr;text-align:left}.lgw span{color:#6c9aff}
+.lgt{color:var(--mut);font-size:15px;margin:6px 0 0}
+.lgc{display:grid;gap:16px}
+.lgl{display:grid;gap:6px;font-size:13px;color:var(--mut)}
+.lgi input{background:rgba(0,0,0,.4);border:1px solid var(--line);border-radius:14px;padding:0 14px;height:50px;font-size:16px;color:#fff;width:100%;box-sizing:border-box}.lgi input:focus{outline:none;border-color:var(--acc)}
+.pwr{position:relative}.pwr input{padding-inline-end:60px}.pwr button{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);background:none;color:var(--mut);padding:8px 8px;font-size:13px}
+.lgb{width:100%;height:54px;font-size:18px;font-weight:900;border-radius:14px;background:var(--acc);color:#fff;box-shadow:0 10px 30px rgba(77,132,255,.5)}
 .lgn .err{text-align:center;min-height:0}.lgn .err:empty{display:none}
+@media (prefers-reduced-motion:reduce){.lgp{animation:none}}
 /* today table + settings */
 .tdy .li{cursor:pointer;flex-wrap:wrap;row-gap:8px}.tdy .chips{display:flex;gap:6px;flex-wrap:wrap}
 .pill.on2{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
@@ -325,10 +327,10 @@ function alerts(u){const a=[];{const st=subStatus(u);if(st.k==='exp')a.push(['ba
 
 /* ---------- login ---------- */
 let showPw=false;
-function login(){return `<div class="lgn"><div class="lgi"><div class="lgm"><div class="lgw">DOR<br><span>FIT</span><i></i></div></div><p class="lgt">האימון שלך. התזונה שלך. במקום אחד.</p>
+function login(){return `<div class="lgn"><svg class="lgbg" viewBox="0 0 390 780" preserveAspectRatio="xMidYMin slice" aria-hidden="true"><defs><linearGradient id="lw" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4d84ff" stop-opacity="0"/><stop offset=".5" stop-color="#7aa5ff"/><stop offset="1" stop-color="#4d84ff" stop-opacity="0"/></linearGradient><filter id="lbl"><feGaussianBlur stdDeviation="6"/></filter></defs><g stroke="#161b24" stroke-width="1"><path d="M0 100H390M0 150H390M0 200H390M0 250H390M0 300H390M0 350H390M0 400H390"/><path d="M50 60V440M100 60V440M150 60V440M200 60V440M250 60V440M300 60V440M350 60V440"/></g><g fill="none" stroke="url(#lw)" stroke-linecap="round" stroke-linejoin="round"><path class="lgp" d="M-10 250H120L145 190L185 330L220 150L255 300L280 250H400" stroke-width="10" filter="url(#lbl)" opacity=".8"/><path class="lgp" d="M-10 250H120L145 190L185 330L220 150L255 300L280 250H400" stroke-width="4"/><path d="M-10 290H100L130 240L170 350L215 210L250 330L280 290H400" stroke-width="2" opacity=".45"/><path d="M-10 330H90L120 290L160 370L210 270L245 350L280 330H400" stroke-width="1.5" opacity=".25"/></g></svg><div class="lgi"><div class="lgm"><div class="lgw">DOR <span>FIT</span></div><p class="lgt">האימון שלך. התזונה שלך. במקום אחד.</p></div><div class="lgc">
 <label class="lgl">שם משתמש<input id="u" autocomplete="username" autocapitalize="none" onkeydown="if(event.key==='Enter')document.getElementById('p').focus()"></label>
 <label class="lgl">סיסמה<div class="pwr"><input id="p" type="${showPw?'text':'password'}" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" onclick="togPw()">${showPw?'הסתר':'הצג'}</button></div></label>
-<div class="err" role="alert">${err}</div><button class="p lgb" onclick="doLogin()">כניסה ←</button></div></div>`}
+<div class="err" role="alert">${err}</div><button class="p lgb" onclick="doLogin()">כניסה</button></div></div></div>`}
 function togPw(){const u=document.getElementById('u').value,p=document.getElementById('p').value;showPw=!showPw;render();document.getElementById('u').value=u;const e=document.getElementById('p');e.value=p;e.focus()}
 function doLogin(){tryLogin(document.getElementById('u').value.trim(),document.getElementById('p').value)}
 const quick=(u,p)=>tryLogin(u,p);
