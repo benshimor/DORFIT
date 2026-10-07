@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>DOR FIT</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#13161b">
+<meta name="theme-color" content="#0b0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script>try{var t=localStorage.getItem("dfTheme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -68,8 +70,8 @@ h1,h2{margin:0}.h1{font-size:24px;font-weight:700;letter-spacing:-.3px}.h2{font-
 .timer{position:fixed;bottom:132px;inset-inline:16px;max-width:508px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:16px;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;z-index:6}.timer b{font-size:22px;font-variant-numeric:tabular-nums}.timer button{background:rgba(128,128,128,.25);color:inherit}
 .grid{column-width:300px;column-gap:14px}.grid>*{break-inside:avoid;display:block}
 .rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:6px 0 10px}.rpe button{padding:12px 0;font-size:16px}.rpe button.on{background:var(--acc);color:#fff}
-.logo{display:inline-flex;align-items:center;gap:8px;direction:ltr;font-weight:900;letter-spacing:2px;font-size:20px}.logo i{font-style:normal;color:var(--acc)}.logo .lm{width:34px;height:34px;border-radius:10px;background:var(--acc);display:flex;align-items:center;justify-content:center}.logo svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
-.logo.big{font-size:38px;gap:12px;letter-spacing:4px}.logo.big .lm{width:64px;height:64px;border-radius:20px}.logo.big svg{width:36px;height:36px}
+.logo{display:inline-flex;align-items:baseline;direction:ltr;font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-weight:400;letter-spacing:2px;font-size:30px;line-height:1}.logo b,.logo i{font-weight:400;font-style:normal}.logo i,.logo u{color:var(--acc);text-decoration:none}.logo u{margin:0 3px}
+.logo.big{font-size:44px}
 .lgn{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(520px 380px at 50% 0%,color-mix(in srgb,var(--acc) 30%,transparent),transparent)}.lgi{width:100%;max-width:360px;display:grid;gap:12px}.lgm{text-align:center;margin-bottom:22px}
 .nx{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer}.sec{font-size:19px;font-weight:700;margin:22px 0 12px}
 .stats.s4{grid-template-columns:repeat(2,1fr)}@media(min-width:600px){.stats.s4{grid-template-columns:repeat(4,1fr)}}
@@ -102,21 +104,16 @@ label.c{display:flex;gap:8px;align-items:center;padding:4px 0}label.c input{widt
 @media (prefers-reduced-motion:reduce){.cel .cf{display:none}}
 .tb{background:var(--card);border:1px solid var(--line);border-radius:50%;width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;flex:none}.tb svg{width:20px;height:20px;fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .seg{display:flex;gap:6px}.seg button{flex:1}.seg button.on{background:var(--acc);color:#fff}
-/* login v2 */
-.lgn{position:relative;overflow:hidden;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;background:var(--bg)}
-.lgn::before,.lgn::after{content:'';position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none;animation:orb 14s ease-in-out infinite alternate}
-.lgn::before{width:360px;height:360px;background:var(--acc);top:-120px;inset-inline-start:-90px}
-.lgn::after{width:300px;height:300px;background:var(--ok);bottom:-110px;inset-inline-end:-80px;opacity:.28;animation-delay:-6s}
-@keyframes orb{to{transform:translate(40px,30px) scale(1.15)}}
-.lgi{position:relative;z-index:1;width:100%;max-width:380px;display:grid;gap:12px;background:color-mix(in srgb,var(--card) 78%,transparent);border:1px solid var(--line);border-radius:26px;padding:30px 24px 24px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 20px 60px rgba(0,0,0,.35);animation:rise .6s ease both}
-@keyframes rise{from{opacity:0;transform:translateY(16px)}}
-.lgm{text-align:center;margin-bottom:6px}.lgt{text-align:center;color:var(--mut);font-size:14px;margin:0 0 14px}
-.lgi input{padding:14px 16px;font-size:16px;border-radius:14px}
-.pwr{position:relative}.pwr input{width:100%;padding-inline-end:48px}.pwr button{position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);background:none;color:var(--mut);padding:8px 10px;font-size:13px}
-.lgb{width:100%;padding:15px;font-size:16px;font-weight:700;border-radius:14px;box-shadow:0 8px 24px color-mix(in srgb,var(--acc) 45%,transparent)}
-.lgf{position:relative;z-index:1;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:22px}.lgf span{font-size:12px;color:var(--mut);background:color-mix(in srgb,var(--card) 70%,transparent);border:1px solid var(--line);border-radius:20px;padding:6px 12px}
+/* login v3 */
+.lgn{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:36px 30px;background:var(--bg)}
+.lgi{width:100%;max-width:360px;display:grid;gap:20px}
+.lgm{text-align:start}.lgw{font-family:'Bebas Neue',Impact,'Arial Narrow',sans-serif;font-size:clamp(110px,34vw,150px);line-height:.82;letter-spacing:2px;direction:ltr;text-align:left;color:var(--ink)}.lgw span{color:var(--acc)}.lgw i{display:block;width:60px;height:8px;background:var(--acc);margin-top:16px}
+.lgt{color:var(--mut);font-size:15px;margin:0}
+.lgl{display:grid;gap:4px;font-size:13px;color:var(--mut)}
+.lgi input{background:transparent;border:0;border-bottom:2px solid var(--line);border-radius:0;padding:12px 0;font-size:17px;color:var(--ink);width:100%;box-sizing:border-box}.lgi input:focus{outline:none;border-bottom-color:var(--acc)}
+.pwr{position:relative}.pwr input{padding-inline-end:56px}.pwr button{position:absolute;inset-inline-end:0;top:50%;transform:translateY(-50%);background:none;color:var(--mut);padding:8px 4px;font-size:13px}
+.lgb{width:100%;padding:17px;font-size:18px;font-weight:900;letter-spacing:1px;border-radius:4px}
 .lgn .err{text-align:center;min-height:0}.lgn .err:empty{display:none}
-@media (prefers-reduced-motion:reduce){.lgn::before,.lgn::after,.lgi{animation:none}}
 /* today table + settings */
 .tdy .li{cursor:pointer;flex-wrap:wrap;row-gap:8px}.tdy .chips{display:flex;gap:6px;flex-wrap:wrap}
 .pill.on2{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
@@ -149,7 +146,7 @@ details.card[open]>.sum,.xd[open]>.sum{padding-bottom:12px;margin-bottom:14px;bo
 .seg{display:flex;background:var(--s2);border-radius:12px;padding:3px}.seg button{background:transparent;padding:7px 16px}.seg button.on{background:var(--bar);font-weight:600}
 .ic{background:var(--s2);color:var(--acc);width:38px;height:38px;border-radius:12px;padding:0;font-size:20px}
 .off{position:fixed;bottom:72px;inset-inline:16px;max-width:508px;margin:0 auto;background:var(--warn);color:#2a1c00;border-radius:12px;padding:10px 14px;font-size:13px;font-weight:600;z-index:9;text-align:center}
-.wrap>.nav.mainnav{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px;gap:4px;box-shadow:0 4px 14px rgba(0,0,0,.18);position:sticky;top:8px;z-index:20;margin-bottom:18px}.wrap>.nav.mainnav button{flex:1;padding:10px 12px;border-radius:12px}.wrap>.nav.mainnav button.on{background:var(--acc);color:#fff;font-weight:700}
+.wrap>.nav.mainnav{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px;gap:4px;box-shadow:0 4px 14px rgba(0,0,0,.18);position:sticky;top:8px;z-index:20;margin-bottom:18px}.wrap>.nav.mainnav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.wrap>.nav.mainnav button{flex:1 0 auto;white-space:nowrap;padding:10px 12px;border-radius:12px}.wrap>.nav.mainnav button.on{background:var(--acc);color:#fff;font-weight:700}
 </style>
 </head>
 <body>
@@ -328,11 +325,10 @@ function alerts(u){const a=[];{const st=subStatus(u);if(st.k==='exp')a.push(['ba
 
 /* ---------- login ---------- */
 let showPw=false;
-function login(){return `<div class="lgn"><div class="lgi"><div class="lgm">${logo(1)}</div><p class="lgt">האימון שלך. התזונה שלך. במקום אחד.</p>
-<input id="u" placeholder="שם משתמש" autocomplete="username" autocapitalize="none" aria-label="שם משתמש" onkeydown="if(event.key==='Enter')document.getElementById('p').focus()">
-<div class="pwr"><input id="p" type="${showPw?'text':'password'}" placeholder="סיסמה" autocomplete="current-password" aria-label="סיסמה" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" onclick="togPw()">${showPw?'הסתר':'הצג'}</button></div>
-<div class="err" role="alert">${err}</div><button class="p lgb" onclick="doLogin()">כניסה</button></div>
-<div class="lgf"><span>אימונים מותאמים אישית</span><span>מעקב תזונה</span><span>התקדמות בזמן אמת</span></div></div>`}
+function login(){return `<div class="lgn"><div class="lgi"><div class="lgm"><div class="lgw">DOR<br><span>FIT</span><i></i></div></div><p class="lgt">האימון שלך. התזונה שלך. במקום אחד.</p>
+<label class="lgl">שם משתמש<input id="u" autocomplete="username" autocapitalize="none" onkeydown="if(event.key==='Enter')document.getElementById('p').focus()"></label>
+<label class="lgl">סיסמה<div class="pwr"><input id="p" type="${showPw?'text':'password'}" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"><button type="button" onclick="togPw()">${showPw?'הסתר':'הצג'}</button></div></label>
+<div class="err" role="alert">${err}</div><button class="p lgb" onclick="doLogin()">כניסה ←</button></div></div>`}
 function togPw(){const u=document.getElementById('u').value,p=document.getElementById('p').value;showPw=!showPw;render();document.getElementById('u').value=u;const e=document.getElementById('p');e.value=p;e.focus()}
 function doLogin(){tryLogin(document.getElementById('u').value.trim(),document.getElementById('p').value)}
 const quick=(u,p)=>tryLogin(u,p);
@@ -540,7 +536,7 @@ function saveWeight(id){const el=document.getElementById(id),v=parseFloat(el&&el
  if(l&&l[0]===k)l[1]=v;else u.weights.push([k,v]);save();flash('השקילה נשמרה ✓')}
 setInterval(()=>{const e=document.getElementById('el'),u=S.me&&me();if(e&&u&&u.act)e.textContent=elapsed(u.act)},1000);
 
-const logo=big=>`<span class="logo ${big?'big':''}"><span class="lm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></svg></span><b>DOR</b><i>FIT</i></span>`;
+const logo=big=>`<span class="logo ${big?'big':''}"><b>DOR</b><u>/</u><i>FIT</i></span>`;
 const ago=ms=>{const d=Math.floor((Date.now()-ms)/864e5);return d<=0?'היום':d===1?'אתמול':'לפני '+d+' ימים'};
 const wdelta=u=>{const w=u.weights;if(w.length<2)return '—';const d=w[w.length-1][1]-w[0][1];return (d>0?'+':'')+d.toFixed(1)+' ק״ג'};
 const openT=id=>{sel=id;dtab='sum';cred=null;render()};

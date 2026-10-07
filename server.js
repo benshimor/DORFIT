@@ -283,9 +283,9 @@ app.get('/api/export', wrap((req, res) => {
 app.get('/healthz', (req, res) => res.send('ok'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
 
-const WEB = ['index.html', 'manifest.json', 'icon.svg', 'sw.js'];
+const WEB = ['index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'sw.js'];
 const webFile = f => [path.join(__dirname, 'public', f), path.join(__dirname, f)].find(p => fs.existsSync(p));
-app.get(['/', '/index.html', '/manifest.json', '/icon.svg', '/sw.js'], (req, res) => {
+app.get(['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/sw.js'], (req, res) => {
   const f = req.path === '/' ? 'index.html' : req.path.slice(1);
   const p = WEB.includes(f) && webFile(f);
   if (!p) return res.status(404).send('missing ' + f);
