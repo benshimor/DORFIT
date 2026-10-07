@@ -26,10 +26,10 @@ const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
 const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia', 'rtime', 'remOff']; // trainee-owned
-const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone'];                                                          // coach-owned
+const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone', 'remT', 'sub'];                                                          // coach-owned
 const checks = {
   water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
-  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20),
+  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20), sub: x => obj(x) && JSON.stringify(x).length < 2000, remT: x => str(x, 5) && (x === '' || /^\d\d:\d\d$/.test(x)),
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
 };
@@ -130,7 +130,7 @@ app.get('/api/state', wrap((req, res) => {
   auth(req);
   if (req.user.role === 'coach') return res.json({ me: req.user.id, users: db.prepare('select * from users').all().map(outUser), progs: docs('prog'), plans: docs('plan'), exs: docs('ex') });
   const mine = db.prepare('select * from docs where owner=?').all(req.user.id).map(r => ({ type: r.type, d: J(r.data) }));
-  res.json({ me: req.user.id, users: [outUser(req.user)], progs: mine.filter(x => x.type === 'prog').map(x => x.d), plans: mine.filter(x => x.type === 'plan').map(x => x.d), exs: docs('ex') });
+  res.json({ me: req.user.id, users: [(({ sub, pays, ...o }) => o)(outUser(req.user))], progs: mine.filter(x => x.type === 'prog').map(x => x.d), plans: mine.filter(x => x.type === 'plan').map(x => x.d), exs: docs('ex') });
 }));
 
 app.put('/api/me', wrap((req, res) => {
@@ -312,7 +312,7 @@ async function runReminders(now) {
   for (const r of rows) {
     const data = J(r.data);
     if ((data.status && data.status !== 'פעיל') || data.remOff) continue;
-    const t = /^\d\d:\d\d$/.test(data.rtime || '') ? data.rtime : '08:30';
+    const okT = v => /^\d\d:\d\d$/.test(v || ''); const t = okT(data.remT) ? data.remT : okT(data.rtime) ? data.rtime : '10:00';
     if (hm < t) continue;
     if (!(data.checkin && data.checkin.done && data.day === d) && !logged(r.id, 'ci', d)) {
       markLogged(r.id, 'ci', d);
