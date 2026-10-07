@@ -194,6 +194,17 @@ app.post('/api/users/:id/password', wrap((req, res) => {
   db.prepare('delete from sessions where user_id=?').run(row.id);
   res.json({ pass });
 }));
+app.delete('/api/users/:id', wrap((req, res) => {
+  auth(req, 'coach');
+  const row = db.prepare("select id from users where id=? and role='trainee'").get(req.params.id);
+  if (!row) fail(404, 'מתאמן לא נמצא');
+  db.transaction(() => {
+    for (const t of ['sessions', 'push_subs', 'photos', 'push_log']) db.prepare('delete from ' + t + ' where user_id=?').run(row.id);
+    db.prepare('delete from docs where owner=?').run(row.id);
+    db.prepare('delete from users where id=?').run(row.id);
+  })();
+  res.json({ ok: true });
+}));
 app.put('/api/library', wrap((req, res) => {
   auth(req, 'coach');
   const { progs, plans, exs } = req.body || {};
