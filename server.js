@@ -98,7 +98,7 @@ const setCookie = (res, token, maxAge) => res.append('Set-Cookie', `sid=${token}
 const wrap = fn => (req, res) => { try { fn(req, res); } catch (e) { if (!e.status) console.error(e); res.status(e.status || 500).json({ error: e.status ? e.message : 'שגיאת שרת' }); } };
 
 app.use('/api', (req, res, next) => {
-  if (req.method !== 'GET' && req.headers['x-app'] !== '1') return res.status(403).json({ error: 'forbidden' });
+  if (req.method !== 'GET' && req.headers['x-app'] !== '1' && !req.path.startsWith('/h/')) return res.status(403).json({ error: 'forbidden' });
   const sid = cookies(req).sid;
   if (sid) {
     const s = db.prepare('select s.exp,u.* from sessions s join users u on u.id=s.user_id where s.token=?').get(sid);
@@ -139,6 +139,39 @@ app.put('/api/me', wrap((req, res) => {
   const data = { ...J(req.user.data), ...pick(req.body || {}, TF) };
   db.prepare('update users set data=? where id=?').run(JSON.stringify(data), req.user.id);
   res.json({ ok: true });
+}));
+
+/* ---------- iPhone Shortcuts: personal link that receives steps + sleep ---------- */
+db.exec("create table if not exists kv(k text primary key, v text not null)");
+const hTok = uid => { const r = db.prepare('select v from kv where k=?').get('htok:' + uid); if (r) return r.v; const v = crypto.randomBytes(24).toString('hex'); db.prepare('insert into kv(k,v) values(?,?)').run('htok:' + uid, v); return v; };
+const hHits = new Map();
+const todayTZ = () => new Intl.DateTimeFormat('en-CA', { timeZone: process.env.APP_TZ || 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const numIn = v => { if (Array.isArray(v)) v = v[0]; if (v === undefined || v === null) return null; const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.]/g, '')); return isFinite(n) ? n : null; };
+// sleep may arrive as hours, minutes or seconds depending on how the Shortcut sums it
+const sleepHours = n => n === null ? null : n <= 24 ? n : n <= 1440 ? n / 60 : n <= 86400 ? n / 3600 : null;
+app.post('/api/health/link', wrap((req, res) => {
+  auth(req, 'trainee');
+  if ((req.body || {}).reset) { db.prepare('delete from kv where k=?').run('htok:' + req.user.id); }
+  res.json({ token: hTok(req.user.id) });
+}));
+app.get('/api/health/pull', wrap((req, res) => { auth(req, 'trainee'); res.json({ hin: J(req.user.data).hin || null }); }));
+app.all('/api/h/:token', wrap((req, res) => {
+  const t = String(req.params.token || '');
+  if (!/^[a-f0-9]{48}$/.test(t)) fail(404, 'קישור לא תקין');
+  const now = Date.now(), hits = (hHits.get(t) || []).filter(x => now - x < 60000);
+  if (hits.length >= 30) fail(429, 'יותר מדי בקשות');
+  hits.push(now); hHits.set(t, hits); if (hHits.size > 500) hHits.clear();
+  const row = db.prepare("select u.* from kv k join users u on k.k='htok:'||u.id where k.v=? and u.role='trainee'").get(t);
+  if (!row) fail(404, 'קישור לא תקין');
+  const q = { ...(req.query || {}), ...(obj(req.body) ? req.body : {}) };
+  let steps = numIn(q.steps), sleep = sleepHours(numIn(q.sleep));
+  steps = steps !== null && steps > 0 && steps <= 200000 ? Math.round(steps) : null;
+  sleep = sleep !== null && sleep > 0 && sleep <= 16 ? Math.round(sleep * 2) / 2 : null;
+  if (steps === null && sleep === null) fail(400, 'לא התקבלו צעדים או שינה');
+  const data = J(row.data), d = todayTZ(), prev = data.hin && data.hin.d === d ? data.hin : {};
+  data.hin = { d, steps: steps !== null ? Math.max(steps, prev.steps || 0) : prev.steps || null, sleep: sleep !== null ? sleep : prev.sleep || null, ts: now };
+  db.prepare('update users set data=? where id=?').run(JSON.stringify(data), row.id);
+  res.json({ ok: true, steps: data.hin.steps, sleep: data.hin.sleep });
 }));
 app.post('/api/me/password', wrap((req, res) => {
   auth(req);
