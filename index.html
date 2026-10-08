@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>DOR FIT</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#05070d">
@@ -197,6 +197,8 @@ button.p{box-shadow:inset 0 1.5px 0 rgba(255,255,255,.45),0 8px 24px color-mix(i
 .hlg{width:46px;height:46px;border-radius:16px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--acc);background:linear-gradient(135deg,rgba(255,255,255,var(--ga1)),rgba(255,255,255,var(--ga2)));border:1px solid rgba(255,255,255,calc(var(--grim)*.55));-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);box-shadow:inset 0 1.5px 0 rgba(255,255,255,var(--grim)),0 8px 22px color-mix(in srgb,var(--acc) 30%,transparent)}.hlg svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .dg{touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;font-size:22px;line-height:1;color:var(--mut);padding:8px 6px;margin-inline-end:2px;border-radius:8px}
 .xd.dragging{opacity:.55;outline:2px dashed var(--acc);outline-offset:-2px}.xd.dtgt{box-shadow:0 -3px 0 var(--acc)}
+html,body{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (pointer:coarse){input,select,textarea{font-size:16px!important}}
 </style>
 </head>
 <body>
@@ -527,6 +529,8 @@ function coachList(){const ts=S.users.filter(x=>x.role==='t');
 const repRg=r=>{const m=String(r||'').match(/(\d+)\D+(\d+)/);if(m)return [+m[1],+m[2]];const n=parseInt(r);return isNaN(n)?[0,0]:[n,n]};
 function gStats(days){const m={};days.forEach(d=>d.ex.forEach(e=>{if(!e.n&&!e.g)return;const g=normG(e.g||libGroup(e.n)||'לא מוגדר',e.n),n=num(e.sets),r=repRg(e.rep);const o=m[g]=m[g]||{s:0,a:0,b:0};o.s+=n;o.a+=n*r[0];o.b+=n*r[1]}));return m}
 function gSum(days,title){const m=gStats(days),ks=Object.keys(m).sort((a,b)=>m[b].s-m[a].s);if(!ks.length)return '';return `<div class="hd" style="margin:10px 0 6px">${title}</div>`+ks.map(k=>{const o=m[k];return `<div class="row sp" style="padding:7px 0;border-top:1px solid var(--line)"><b>${k}</b><span class="mut"><b style="color:var(--ink)">${o.s}</b> סטים · ${o.a===o.b?o.a:o.a+'–'+o.b} חזרות</span></div>`}).join('')}
+['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchmove',e=>{if(e.touches&&e.touches.length>1)e.preventDefault()},{passive:false});
 document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.tagName==='INPUT'&&(t.type==='number'||/numeric|decimal/.test(t.getAttribute('inputmode')||''))){setTimeout(()=>{try{t.select()}catch(_){}},0)}});
 let DG=null;
 function moveEx(i,to){const a=S.progs[pe]&&S.progs[pe].days[pd]&&S.progs[pe].days[pd].ex;if(!a||i===to||i<0||to<0||i>=a.length||to>=a.length)return;const [x]=a.splice(i,1);a.splice(to,0,x);if(a[0])a[0].ss=false;save();render()}
