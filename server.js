@@ -333,7 +333,7 @@ app.get('/api/export', wrap((req, res) => {
   res.json({ users: db.prepare('select id,username,role,data from users').all().map(r => ({ ...r, data: J(r.data) })), docs: db.prepare('select * from docs').all().map(r => ({ ...r, data: J(r.data) })) });
 }));
 app.get('/api/moh', wrap((req, res) => {
-  auth(req, 'coach');
+  auth(req);
   const p = [path.join(__dirname, 'moh-foods.json.gz'), path.join(__dirname, 'public', 'moh-foods.json.gz')].find(x => fs.existsSync(x));
   if (!p) return res.status(404).json({ error: 'המאגר הרשמי לא הועלה' });
   res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
