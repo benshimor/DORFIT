@@ -332,6 +332,8 @@ app.get('/api/export', wrap((req, res) => {
   res.set('Content-Disposition', 'attachment; filename="dorfit-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
   res.json({ users: db.prepare('select id,username,role,data from users').all().map(r => ({ ...r, data: J(r.data) })), docs: db.prepare('select * from docs').all().map(r => ({ ...r, data: J(r.data) })) });
 }));
+app.get('/api/config', (req, res) => res.json({ apk: !!process.env.APK_URL }));
+app.get('/apk', (req, res) => process.env.APK_URL ? res.redirect(process.env.APK_URL) : res.status(404).type('text/plain').send('APK link is not configured'));
 app.get('/healthz', (req, res) => res.send('ok'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
 
