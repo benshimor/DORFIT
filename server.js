@@ -254,7 +254,7 @@ app.put('/api/library', wrap((req, res) => {
   if (foods !== undefined) {
     if (!Array.isArray(foods) || foods.length > 2000 || !foods.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const m = x => Math.max(0, Math.min(5000, Math.round((Number(x) || 0) * 10) / 10));
-    cleanFd = foods.map(d => ({ id: d.id, n: d.n, q: typeof d.q === 'string' ? d.q.slice(0, 30) : '', k: m(d.k), p: m(d.p), c: m(d.c), f: m(d.f) }));
+    cleanFd = foods.map(d => ({ id: d.id, n: d.n, q: typeof d.q === 'string' ? d.q.slice(0, 30) : '', k: m(d.k), p: m(d.p), c: m(d.c), f: m(d.f), b: d.b === 'g' ? 'g' : 's', cat: typeof d.cat === 'string' ? d.cat.slice(0, 30) : '', pu: typeof d.pu === 'string' ? d.pu.slice(0, 30) : '', u: Array.isArray(d.u) ? d.u.filter(x => obj(x) && str(x.n, 30) && num(x.g) && x.g > 0 && x.g <= 5000).slice(0, 12).map(x => ({ n: x.n, g: Math.round(x.g * 10) / 10 })) : [] }));
   }
   const ins = db.prepare('insert into docs(id,type,owner,data) values(?,?,?,?)');
   db.transaction(() => {
@@ -331,6 +331,13 @@ app.get('/api/export', wrap((req, res) => {
   auth(req, 'coach');
   res.set('Content-Disposition', 'attachment; filename="dorfit-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
   res.json({ users: db.prepare('select id,username,role,data from users').all().map(r => ({ ...r, data: J(r.data) })), docs: db.prepare('select * from docs').all().map(r => ({ ...r, data: J(r.data) })) });
+}));
+app.get('/api/moh', wrap((req, res) => {
+  auth(req, 'coach');
+  const p = [path.join(__dirname, 'moh-foods.json.gz'), path.join(__dirname, 'public', 'moh-foods.json.gz')].find(x => fs.existsSync(x));
+  if (!p) return res.status(404).json({ error: 'המאגר הרשמי לא הועלה' });
+  res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, max-age=86400' });
+  res.sendFile(p);
 }));
 app.get('/api/config', (req, res) => res.json({ apk: !!process.env.APK_URL }));
 app.get('/apk', (req, res) => process.env.APK_URL ? res.redirect(process.env.APK_URL) : res.status(404).type('text/plain').send('APK link is not configured'));
