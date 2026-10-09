@@ -324,7 +324,7 @@ app.get('/api/photos/:id', wrap((req, res) => {
   auth(req);
   const r = db.prepare('select user_id,data from photos where id=?').get(req.params.id);
   if (!r || (req.user.role !== 'coach' && r.user_id !== req.user.id)) fail(404, 'לא נמצא');
-  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' });
   res.send(r.data);
 }));
 app.get('/api/export', wrap((req, res) => {
@@ -336,7 +336,7 @@ app.get('/api/moh', wrap((req, res) => {
   auth(req, 'coach');
   const p = [path.join(__dirname, 'moh-foods.json.gz'), path.join(__dirname, 'public', 'moh-foods.json.gz')].find(x => fs.existsSync(x));
   if (!p) return res.status(404).json({ error: 'המאגר הרשמי לא הועלה' });
-  res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, max-age=86400' });
+  res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
   res.sendFile(p);
 }));
 app.get('/api/config', (req, res) => res.json({ apk: !!process.env.APK_URL }));
