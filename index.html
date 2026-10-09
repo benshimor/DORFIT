@@ -226,6 +226,8 @@ details>.body{animation:fin .25s ease}
 .tipb{display:flex;align-items:flex-start;gap:8px;margin:0 0 12px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,var(--acc) 12%,var(--card));border:1px solid color-mix(in srgb,var(--acc) 30%,transparent);font-size:13.5px;line-height:1.5}.tipb span{flex:1}.tipb button{background:transparent;border:0;color:var(--mut);padding:2px 6px;font-size:15px;min-width:0}
 .fr .sw{background:transparent;border:0;padding:2px 5px;min-width:0;height:auto;color:var(--acc);vertical-align:middle;display:inline-grid;margin-inline-start:4px}.fr .sw svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .al2{margin:8px 0 0;background:color-mix(in srgb,var(--acc) 7%,transparent);border-radius:12px;padding:8px}
+.sg2{position:absolute;z-index:40;inset-inline:0;top:calc(100% + 4px);max-height:280px;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.35);padding:4px}.sg2 button{display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;text-align:start;background:transparent;border:0;padding:10px 10px;border-radius:10px;min-width:0;height:auto;color:var(--ink);font-size:14.5px}.sg2 button:active,.sg2 button:hover{background:var(--s2)}.sg2 button span{color:var(--mut);font-size:12px;white-space:nowrap}
+.fp{position:relative}.af .fp{margin-top:6px}
 </style>
 </head>
 <body>
@@ -458,13 +460,13 @@ function nutrition(u){const pl=planOf(u),T=planM(u),E=eatenM(u),L=(a,b,u)=>`<spa
  <div class="mt"><span></span><span style="border-color:#5b8cff"><i>קל׳</i>${rnd(t.k)}</span><span style="border-color:#22c55e"><i>חלבון</i>${rnd(t.p)}g</span><span style="border-color:#ff9f1a"><i>פחמ׳</i>${rnd(t.c)}g</span><span style="border-color:#ec4899"><i>שומן</i>${rnd(t.f)}g</span></div>
  ${it.map((x0,j)=>{const x=effItem(x0,s,j);return nRow(x,'',x0.alts&&x0.alts.length&&o.items&&o.items.length?`<button class="sw" aria-label="מאכל חלופי" onclick="altS=[${i},${j}];render()">${nIc.sw}</button>`:'')}).join('')}${xs.map((x,j)=>nRow(x,`<button class="xr" aria-label="הסר" onclick="delFood(${i},${j})">✕</button>`)).join('')}
  ${no?`<div class="note"><b>הערת המאמן</b>${m.note?esc(m.note):'אין הערה לארוחה הזו'}</div><div class="note" style="background:transparent;padding:0 0 0"><textarea rows="2" placeholder="ההערה שלי לארוחה (רק למאמן ולי)" onchange="msOf(me(),${i}).n=this.value.slice(0,300);save()">${esc(s.n||'')}</textarea></div>`:''}
- ${addI===i?`<div class="af"><input id="afn" placeholder="שם המאכל (אפשר לבחור מהמאגר)" list="fdl" oninput="afFill(this.value)"><datalist id="fdl">${S.foods.map(f=>`<option value="${esc(f.n)}">${esc(f.q||'')} · ${rnd(f.k)} קל׳</option>`).join('')}</datalist><input id="afq" placeholder="כמות (למשל 100 גרם)"><div class="g4"><input id="afk" type="number" inputmode="decimal" placeholder="קל׳"><input id="afp" type="number" inputmode="decimal" placeholder="חלבון"><input id="afc" type="number" inputmode="decimal" placeholder="פחמ׳"><input id="aff" type="number" inputmode="decimal" placeholder="שומן"></div><div class="row"><button class="p" style="flex:1" onclick="addFood(${i})">הוסף</button><button class="g" onclick="addI=null;render()">ביטול</button></div></div>`:''}
+ ${addI===i?`<div class="af">${S.foods.length?`<div class="mut" style="font-size:12.5px">חפש מאכל מהמאגר, בחר כמות ויחידה, והערכים יחושבו לבד.</div><div class="fpw">${fdPicker('afn','חיפוש מאכל',`addFood(${i})`)}</div>`:`<input id="afn" placeholder="שם המאכל">`}<details style="margin-top:6px"><summary class="mut" style="cursor:pointer">מאכל שלא במאגר? הזן ערכים ידנית</summary><div style="display:grid;gap:8px;margin-top:8px"><input id="afq" placeholder="כמות (למשל 100 גרם)"><div class="g4"><input id="afk" type="number" inputmode="decimal" placeholder="קל׳"><input id="afp" type="number" inputmode="decimal" placeholder="חלבון"><input id="afc" type="number" inputmode="decimal" placeholder="פחמ׳"><input id="aff" type="number" inputmode="decimal" placeholder="שומן"></div><div class="mut" style="font-size:12px">כתוב שם בשדה החיפוש למעלה ואז לחץ הוסף.</div></div></details><div class="row" style="margin-top:8px"><button class="g" onclick="addI=null;render()">ביטול</button></div></div>`:''}
  <div class="mf"><button class="${s.v?'':'p'}" style="${s.v?'background:var(--ok);color:#fff':''}" onclick="meal(${i})">${s.v?'✓ נאכלה':'סימון כנאכלה'}</button>${addI===i?'':`<button class="g" style="border:1px solid var(--line)" onclick="addI=${i};render()">+ הוסף מאכל</button>`}</div></div>`}).join('')}
  ${altS&&pl.meals[altS[0]]?altSheet(u,pl):''}
  ${swapI!==null&&pl.meals[swapI]?`<div class="sov" onclick="swapI=null;render()"></div><div class="sheet"><div class="grab"></div><div class="row sp" style="margin-bottom:4px"><b style="font-size:17px">החלפת ${esc(pl.meals[swapI].n)}</b><button class="g" style="padding:6px 10px" onclick="swapI=null;render()">✕</button></div>${pl.meals[swapI].opts.map((x,j)=>{const a=mac(x);return `<div class="al ${swapC===j?'on':''}" role="button" tabindex="0" onclick="swapC=${j};render()"><span class="rd"></span><div style="flex:1"><b>${esc(optName(x,j))}</b><div class="mm">${rnd(a.k)} קל׳ · חלבון ${rnd(a.p)} · פחמ׳ ${rnd(a.c)} · שומן ${rnd(a.f)}</div></div></div>`}).join('')}<button class="p" style="width:100%;margin-top:14px;padding:13px" onclick="pick(${swapI},swapC);swapI=null;render()">אישור החלפה</button></div>`:''}`}
 const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const noteT=i=>{noteO.has(i)?noteO.delete(i):noteO.add(i);render()};
-const addFood=i=>{const g=id=>document.getElementById(id).value,n=g('afn').trim();if(!n)return flash('הזן שם מאכל');const s=msOf(me(),i);(s.x=s.x||[]).push({n:n.slice(0,60),q:g('afq').trim().slice(0,30),k:num(g('afk')),p:num(g('afp')),c:num(g('afc')),f:num(g('aff'))});addI=null;save();render()};
+const addFood=i=>{const r=fdRead('afn'),g=id=>document.getElementById(id).value;if(!r)return flash('הזן שם מאכל');const s=msOf(me(),i);(s.x=s.x||[]).push(r.f?itemFrom(r.f,r.amt,r.ut):{n:r.n.slice(0,60),q:g('afq').trim().slice(0,30),k:num(g('afk')),p:num(g('afp')),c:num(g('afc')),f:num(g('aff'))});addI=null;save();render()};
 const afFill=n=>{const f=fdFind(n);if(!f)return;const set=(i,v)=>{document.getElementById(i).value=v};set('afq',f.q||'');set('afk',f.k);set('afp',f.p);set('afc',f.c);set('aff',f.f)};
 const delFood=(i,j)=>{const s=msOf(me(),i);(s.x||[]).splice(j,1);save();render()};
 const addSteps=n=>{const u=me(),p=u.steps||0;u.steps=Math.max(0,p+n);stepsCheck(p,u);save();render()};
@@ -600,18 +602,18 @@ const newOpt=()=>({d:'',items:[]});
 function migPlan(p){p.meals.forEach(m=>m.opts.forEach(o=>{if(!Array.isArray(o.items)){o.items=(num(o.k)||num(o.p)||(o.d||'').trim())?[{n:(o.d||'מאכל').trim(),q:'',k:num(o.k),p:num(o.p),c:num(o.c),f:num(o.f)}]:[]}}))}
 function altEd(pi,mi,oi,xi,x){const ib=`plans.${pi}.meals.${mi}.opts.${oi}.items.${xi}`,al=x.alts||[],id=`aa-${pi}-${mi}-${oi}-${xi}`;
  const row=(a,ai)=>{const ab=ib+'.alts.'+ai,nl=(l,k)=>`<label class="nl"><span>${l}</span>${inp(ab+'.'+k,a[k]||0,'0','number')}</label>`,d=k=>{const v=rnd(num(a[k])-num(x[k]));return (v>0?'+':'')+v};
-  return `<div class="ii al2"><div class="row" style="gap:6px">${inp(ab+'.n',a.n||'','מאכל חלופי')}<div style="max-width:38%">${inp(ab+'.q',a.q||'','כמות')}</div><button class="x" aria-label="מחק חלופי" style="padding:0 6px" onclick="S.plans[${pi}].meals[${mi}].opts[${oi}].items[${xi}].alts.splice(${ai},1);save();render()">✕</button></div><div class="g4">${nl('קל׳','k')}${nl('חלבון','p')}${nl('פחמ׳','c')}${nl('שומן','f')}</div><div class="mut" style="font-size:12px">מול המקורי: ${d('k')} קל׳ · ${d('p')} חלבון · ${d('c')} פחמ׳ · ${d('f')} שומן</div></div>`};
- return `<div class="alts"><div class="mut" style="font-size:12px;margin:8px 0 4px">מאכלים חלופיים${al.length?' ('+al.length+')':''} · המתאמן יוכל להחליף למאכל אחר</div>${al.map(row).join('')}<div class="row" style="gap:6px"><input id="${id}" list="fdl" placeholder="+ מאכל חלופי (חיפוש במאגר או שם חדש)" onkeydown="if(event.key==='Enter'){addAlt(${pi},${mi},${oi},${xi})}"><button class="g" style="flex:none" onclick="addAlt(${pi},${mi},${oi},${xi})">הוסף</button></div></div>`}
-function addAlt(pi,mi,oi,xi){const el=document.getElementById(`aa-${pi}-${mi}-${oi}-${xi}`),n=(el&&el.value||'').trim();if(!n)return;const f=fdFind(n),x=S.plans[pi].meals[mi].opts[oi].items[xi];(x.alts=x.alts||[]).push(f?{n:f.n,q:f.q||'',k:f.k,p:f.p,c:f.c,f:f.f}:{n,q:'',k:0,p:0,c:0,f:0});save();render()}
-function addFd(pi,mi,oi){const el=document.getElementById('ad-'+pi+'-'+mi),n=(el&&el.value||'').trim(),f=n&&fdFind(n),q=S.plans[pi].meals[mi].opts[oi];q.items=q.items||[];q.items.push(f?{n:f.n,q:f.q||'',k:f.k,p:f.p,c:f.c,f:f.f}:{n,q:'',k:0,p:0,c:0,f:0});save();render()}
+  return `<div class="ii al2"><div class="row" style="gap:6px">${inp(ab+'.n',a.n||'','מאכל חלופי')}${a.fid&&S.foods.some(y=>y.id===a.fid)?'':`<div style="max-width:38%">${inp(ab+'.q',a.q||'','כמות')}</div>`}<button class="x" aria-label="מחק חלופי" style="padding:0 6px" onclick="S.plans[${pi}].meals[${mi}].opts[${oi}].items[${xi}].alts.splice(${ai},1);save();render()">✕</button></div>${a.fid&&S.foods.some(y=>y.id===a.fid)?qtyEd(`S.plans[${pi}].meals[${mi}].opts[${oi}].items[${xi}].alts[${ai}]`,a):''}<div class="g4">${nl('קל׳','k')}${nl('חלבון','p')}${nl('פחמ׳','c')}${nl('שומן','f')}</div><div class="mut" style="font-size:12px">מול המקורי: ${d('k')} קל׳ · ${d('p')} חלבון · ${d('c')} פחמ׳ · ${d('f')} שומן</div></div>`};
+ return `<div class="alts"><div class="mut" style="font-size:12px;margin:8px 0 4px">מאכלים חלופיים${al.length?' ('+al.length+')':''} · המתאמן יוכל להחליף למאכל אחר</div>${al.map(row).join('')}${fdPicker(id,'+ מאכל חלופי (חיפוש במאגר או שם חדש)',`addAlt(${pi},${mi},${oi},${xi})`)}</div>`}
+function addAlt(pi,mi,oi,xi){const r=fdRead(`aa-${pi}-${mi}-${oi}-${xi}`);if(!r)return;const x=S.plans[pi].meals[mi].opts[oi].items[xi];(x.alts=x.alts||[]).push(r.f?itemFrom(r.f,r.amt,r.ut):{n:r.n,q:'',k:0,p:0,c:0,f:0});save();render()}
+function addFd(pi,mi,oi){const r=fdRead('ad-'+pi+'-'+mi);if(!r)return;const q=S.plans[pi].meals[mi].opts[oi];q.items=q.items||[];q.items.push(r.f?itemFrom(r.f,r.amt,r.ut):{n:r.n,q:'',k:0,p:0,c:0,f:0});save();render()}
 function plOne(pi){const p=S.plans[pi];migPlan(p);return `<div class="card">${inp(`plans.${pi}.name`,p.name,'שם התפריט')}</div>${budget(p,pi)}<datalist id="fdl">${S.foods.map(f=>`<option value="${esc(f.n)}">${esc(f.q||'')} · ${rnd(f.k)} קל׳</option>`).join('')}</datalist>
  ${p.meals.map((m,mi)=>{const k='m'+pi+'-'+mi,b=`plans.${pi}.meals.${mi}`,oi=Math.min(OSEL[k]||0,m.opts.length-1),o=m.opts[oi],ob=`${b}.opts.${oi}`,t=mac(o),t0=mac(m.opts[0]);
  return `<details class="xd" ${OP.has(k)||!OP.has('c'+k)?'open':''} ontoggle="this.open?OP.add('${k}'):OP.delete('${k}');OP.add('c${k}')"><summary class="sum"><span class="dg" data-k="meal" data-p="${pi}" data-i="${mi}" role="button" aria-label="גרור לשינוי סדר" title="גרור לשינוי סדר">⠿</span><b style="flex:1">${esc(m.n)||'ארוחה'}</b><span class="mut">${rnd(t0.k)} קל׳ · ${rnd(t0.p)}g · ${(m.opts[0].items||[]).length} מאכלים${m.opts.length>1?' · '+m.opts.length+' אפשרויות':''}</span></summary><div class="body">${inp(b+'.n',m.n,'שם הארוחה')}<textarea rows="1" placeholder="הערה לארוחה (מוצגת למתאמן)" onchange="ed('${b}.note',this.value);render()">${esc(m.note||'')}</textarea>
  <div class="row wr" style="gap:6px">${m.opts.map((x,j)=>`<button class="opt ${j===oi?'on':''}" onclick="OSEL['${k}']=${j};render()">${j===0?'אפשרות ראשית':'חלופה '+j}</button>`).join('')}<button class="opt" onclick="S.plans[${pi}].meals[${mi}].opts.push(newOpt());OSEL['${k}']=${m.opts.length};save();render()">+ חלופה</button></div>
  <div class="oi">${oi>0?`<div class="row">${inp(ob+'.d',o.d||'','שם החלופה (לא חובה)')}<button class="x" aria-label="מחק חלופה" onclick="S.plans[${pi}].meals[${mi}].opts.splice(${oi},1);OSEL['${k}']=0;save();render()">✕</button></div><div class="mut" style="font-size:12px">מול הראשית: ${rnd(t.k-t0.k)>=0?'+':''}${rnd(t.k-t0.k)} קל׳ · חלבון ${rnd(t.p-t0.p)>=0?'+':''}${rnd(t.p-t0.p)} · פחמ׳ ${rnd(t.c-t0.c)>=0?'+':''}${rnd(t.c-t0.c)} · שומן ${rnd(t.f-t0.f)>=0?'+':''}${rnd(t.f-t0.f)}</div>`:''}
  <div class="mt" style="padding:0"><span></span><span style="border-color:#5b8cff">${rnd(t.k)}</span><span style="border-color:#22c55e">${rnd(t.p)}g</span><span style="border-color:#ff9f1a">${rnd(t.c)}g</span><span style="border-color:#ec4899">${rnd(t.f)}g</span></div>
- ${o.items.map((x,xi)=>{const ib=`${ob}.items.${xi}`,nl=(l,k)=>`<label class="nl"><span>${l}</span>${inp(ib+'.'+k,x[k]||0,'0','number')}</label>`;return `<div class="ii"><div class="row" style="gap:6px">${inp(ib+'.n',x.n||'','מאכל')}<div style="max-width:38%">${inp(ib+'.q',x.q||'','כמות')}</div><button class="x" aria-label="מחק מאכל" style="padding:0 6px" onclick="S.plans[${pi}].meals[${mi}].opts[${oi}].items.splice(${xi},1);save();render()">✕</button></div><div class="g4">${nl('קל׳','k')}${nl('חלבון','p')}${nl('פחמ׳','c')}${nl('שומן','f')}</div>${altEd(pi,mi,oi,xi,x)}<div style="text-align:end"><button class="g" style="font-size:11px;padding:0 6px" onclick="fdSaveFrom(${pi},${mi},${oi},${xi})">שמור למאגר</button></div></div>`}).join('')||'<div class="mut" style="padding:8px 0">עדיין אין מאכלים. הוסף מאכל מהמאגר או הקלד חדש.</div>'}
- <div class="row" style="gap:6px;margin-top:6px"><input id="ad-${pi}-${mi}" list="fdl" placeholder="+ הוסף מאכל (חיפוש במאגר או שם חדש)" onkeydown="if(event.key==='Enter'){addFd(${pi},${mi},${oi})}"><button class="p" style="flex:none" onclick="addFd(${pi},${mi},${oi})">הוסף</button></div></div>
+ ${o.items.map((x,xi)=>{const ib=`${ob}.items.${xi}`,lnk=!!x.fid&&S.foods.some(y=>y.id===x.fid),nl=(l,k)=>`<label class="nl"><span>${l}</span>${inp(ib+'.'+k,x[k]||0,'0','number')}</label>`;return `<div class="ii"><div class="row" style="gap:6px">${inp(ib+'.n',x.n||'','מאכל')}${lnk?'':`<div style="max-width:38%">${inp(ib+'.q',x.q||'','כמות')}</div>`}<button class="x" aria-label="מחק מאכל" style="padding:0 6px" onclick="S.plans[${pi}].meals[${mi}].opts[${oi}].items.splice(${xi},1);save();render()">✕</button></div>${lnk?qtyEd(`S.plans[${pi}].meals[${mi}].opts[${oi}].items[${xi}]`,x):''}<div class="g4">${nl('קל׳','k')}${nl('חלבון','p')}${nl('פחמ׳','c')}${nl('שומן','f')}</div>${altEd(pi,mi,oi,xi,x)}<div style="text-align:end"><button class="g" style="font-size:11px;padding:0 6px" onclick="fdSaveFrom(${pi},${mi},${oi},${xi})">שמור למאגר</button></div></div>`}).join('')||'<div class="mut" style="padding:8px 0">עדיין אין מאכלים. הוסף מאכל מהמאגר או הקלד חדש.</div>'}
+ <div style="margin-top:8px">${fdPicker('ad-'+pi+'-'+mi,'+ הוסף מאכל (חיפוש במאגר או שם חדש)',`addFd(${pi},${mi},${oi})`)}</div></div>
  <div class="row sp"><span></span><button class="x" onclick="if(confirm('למחוק את הארוחה?')){S.plans[${pi}].meals.splice(${mi},1);save();render()}">מחק ארוחה</button></div></div></details>`}).join('')}
  <button class="p" style="width:100%;padding:13px" onclick="S.plans[${pi}].meals.push({n:'ארוחה חדשה',opts:[newOpt()]});OP.add('m${pi}-${p.meals.length}');save();render()">+ הוסף ארוחה</button>`}
 function coachDetail(u){const ix=S.users.indexOf(u),al=alerts(u),n=planOf(u).meals.length,L=u.last,c=u.checkin;
@@ -862,21 +864,192 @@ function exView(){const L=S.exs.map((e,i)=>[e,i]).filter(([e])=>!exf||(e.g||'א�
  <details class="card" ${OP.has('exn')||!S.exs.length?'open':''} ontoggle="tgo('exn',this.open)"><summary class="sum"><h2 style="margin:0">הוספת תרגיל</h2></summary><div style="margin-top:12px;display:grid;gap:8px"><input id="xn" placeholder="שם התרגיל"><select id="xg">${EXG.map(g=>`<option>${g}</option>`).join('')}</select><div class="ce"><input id="xs" type="number" placeholder="סטים"><input id="xr" placeholder="חזרות (8-10)" list="repl"><datalist id="repl"><option value="6-8"><option value="8-10"><option value="10-12"><option value="10-15"><option value="12-15"></datalist><input id="xt" type="number" placeholder="מנוחה (שנ׳)"></div><input id="xp" placeholder="הערת טכניקה למתאמן"><input id="xv" placeholder="קישור לסרטון הדגמה"><button class="p" onclick="exNew()">הוסף למאגר</button></div></details>
  <div class="row wr" style="gap:6px;margin:14px 0"><button class="opt ${!exf?'on':''}" onclick="exf='';render()">הכל</button>${EXG.map(g=>`<button class="opt ${exf===g?'on':''}" onclick="exf='${g}';render()">${g}</button>`).join('')}</div>
  ${L.map(([e,i])=>{const b='exs.'+i;return `<details class="xd" ${OP.has(e.id)?'open':''} ontoggle="tgo('${e.id}',this.open)"><summary class="sum"><span style="flex:1;min-width:0"><b>${e.n||'תרגיל'}</b><div class="mut">${e.g||'אחר'} · ${exInfo(e)}</div></span></summary><div class="body">${inp(b+'.n',e.n,'שם התרגיל')}<select onchange="ed('${b}.g',this.value);render()">${EXG.map(g=>`<option ${(e.g||'אחר')===g?'selected':''}>${g}</option>`).join('')}</select><div class="ce"><div><div class="hd">סטים</div>${inp(b+'.sets',e.sets,'3','number')}</div><div><div class="hd">חזרות</div>${inp(b+'.rep',e.rep,'8-10')}</div><div><div class="hd">מנוחה (שנ׳)</div>${inp(b+'.rest',e.rest,'60','number')}</div></div>${inp(b+'.tip',e.tip||'','הערת טכניקה')}${inp(b+'.video',e.video||'','קישור לסרטון')}<div class="row" style="justify-content:flex-end"><button class="x" onclick="if(confirm('למחוק מהמאגר?')){S.exs.splice(${i},1);save();render()}">מחק</button></div></div></details>`}).join('')||'<div class="card mut">אין תרגילים בקטגוריה הזו</div>'}`}
-const BASE_FD=[['חזה עוף מבושל','100 גרם',165,31,0,3.6],['שוק עוף ללא עור','100 גרם',175,24,0,8],['ביצה','1 יח׳',78,6,.6,5],['לבן ביצה','1 יח׳',17,3.6,.2,0],['בקר טחון 5%','100 גרם',137,21,0,5],['סלמון אפוי','100 גרם',206,22,0,13],['טונה במים','100 גרם',116,26,0,1],['חזה הודו פרוס','50 גרם',55,11,1,1],['טופו','100 גרם',76,8,2,4.8],['אורז לבן מבושל','100 גרם',130,2.7,28,.3],['אורז מלא מבושל','100 גרם',123,2.7,25.6,1],['בטטה אפויה','100 גרם',90,2,21,.1],['תפוח אדמה מבושל','100 גרם',87,1.9,20,.1],['פסטה מבושלת','100 גרם',158,5.8,31,.9],['קינואה מבושלת','100 גרם',120,4.4,21,1.9],['עדשים מבושלות','100 גרם',116,9,20,.4],['לחם מלא','פרוסה',80,4,14,1],['פיתה מלאה','1 יח׳',170,6,33,1.7],['שיבולת שועל','40 גרם',150,5,27,3],['גרנולה','40 גרם',180,4,26,7],['פריכיות אורז','1 יח׳',35,.7,7.5,.3],['יוגורט יווני 0%','100 גרם',59,10,3.6,.4],['קוטג׳ 5%','100 גרם',98,11,3.4,4.3],['גבינה צהובה 28%','30 גרם',100,7,.5,8],['חלב 3%','כוס',150,8,12,8],['אבקת חלבון','1 מנה',120,24,3,1.5],['בננה','100 גרם',90,1,23,.3],['תפוח','1 בינוני',95,.5,25,.3],['אבוקדו','חצי',120,1.5,6,11],['שקדים','15 גרם',87,3,3,7.5],['חמאת בוטנים','1 כף',95,4,3,8],['שמן זית','1 כף',119,0,0,13.5],['טחינה','1 כף',90,2.5,3,8],['חומוס','50 גרם',80,4,5,5],['עגבנייה','1 יח׳',22,1,5,.2],['מלפפון','1 יח׳',15,.7,3.6,.1]].map(([n,q,k,p,c,f])=>({n,q,k,p,c,f}));
+const BASE_FD=`בשר ועוף|חזה עוף נא|120|22.5|0|2.6||
+בשר ועוף|חזה עוף מבושל|165|31|0|3.6||
+בשר ועוף|שוק עוף ללא עור|175|24|0|8||
+בשר ועוף|עוף טחון נא|143|17.4|0|8.1||
+בשר ועוף|חזה הודו נא|114|24|0|1.5||
+בשר ועוף|הודו טחון נא|148|19|0|8||
+בשר ועוף|חזה הודו פרוס|104|17|2|2.5|פרוסה=15|
+בשר ועוף|בקר טחון 5%|137|21|0|5||
+בשר ועוף|בקר טחון 10%|176|20|0|10||
+בשר ועוף|בקר טחון 20%|254|17|0|20||
+בשר ועוף|סינטה בקר צלוי|190|29|0|8||
+בשר ועוף|כבד עוף מבושל|167|24.5|1|6.5||
+דגים|סלמון נא|208|20|0|13||
+דגים|סלמון אפוי|206|22|0|13||
+דגים|טונה במים|116|26|0|1|קופסה=120|
+דגים|טונה בשמן (מסוננת)|198|29|0|8|קופסה=120|
+דגים|דג לבן אפוי (דניס/אמנון)|128|26|0|2.7||
+דגים|פילה דג לבן מבושל|105|23|0|0.9||
+דגים|סרדינים בשמן|208|25|0|11||
+ביצים|ביצה S נאה|143|12.6|0.7|9.5|ביצה=48|ביצה
+ביצים|ביצה M נאה|143|12.6|0.7|9.5|ביצה=58|ביצה
+ביצים|ביצה L נאה|143|12.6|0.7|9.5|ביצה=68|ביצה
+ביצים|ביצה XL נאה|143|12.6|0.7|9.5|ביצה=75|ביצה
+ביצים|ביצה M קשה/מבושלת|155|13|1.1|11|ביצה=50|ביצה
+ביצים|לבן ביצה|52|11|0.7|0.2|לבן=33|לבן
+ביצים|חלמון|322|16|3.6|27|חלמון=17|חלמון
+חלב ומוצריו|חלב 3%|60|3.2|4.7|3|כוס=240|
+חלב ומוצריו|חלב 1%|42|3.4|4.9|1|כוס=240|
+חלב ומוצריו|חלב 0%|34|3.4|4.9|0.1|כוס=240|
+חלב ומוצריו|יוגורט טבעי 3%|62|3.5|4.7|3|גביע=200|
+חלב ומוצריו|יוגורט יווני 0%|59|10|3.6|0.4|גביע=150|
+חלב ומוצריו|יוגורט יווני 2%|73|9.9|3.9|1.9|גביע=150|
+חלב ומוצריו|קוטג׳ 5%|98|11|3.4|4.3|גביע=250,כף=25|
+חלב ומוצריו|קוטג׳ 3%|84|11.5|3.4|3|גביע=250,כף=25|
+חלב ומוצריו|קוטג׳ 9%|125|10|3.2|8|גביע=250,כף=25|
+חלב ומוצריו|גבינה צהובה 28%|340|26|1|26|פרוסה=20|פרוסה
+חלב ומוצריו|גבינה צהובה 9%|205|30|1|9|פרוסה=20|פרוסה
+חלב ומוצריו|מוצרלה 22%|270|22|2|20||
+חלב ומוצריו|שמנת מתוקה 38%|345|2.1|3|36|כף=15|
+חלב ומוצריו|חמאה|717|0.9|0.1|81|כף=14,כפית=5|
+חלב ומוצריו|משקה סויה|40|3.3|2.5|1.8|כוס=240|
+חלב ומוצריו|חלב שקדים לא ממותק|17|0.6|0.5|1.2|כוס=240|
+חלב ומוצריו|משקה שיבולת שועל|45|1|6.5|1.5|כוס=240|
+דגנים ולחמים|אורז לבן מבושל|130|2.7|28|0.3|כוס=160|
+דגנים ולחמים|אורז לבן יבש|360|7|79|0.6||
+דגנים ולחמים|אורז מלא מבושל|123|2.7|25.6|1|כוס=160|
+דגנים ולחמים|פסטה מבושלת|158|5.8|31|0.9|כוס=140|
+דגנים ולחמים|פסטה יבשה|365|12.5|74|1.5||
+דגנים ולחמים|קינואה מבושלת|120|4.4|21|1.9|כוס=185|
+דגנים ולחמים|בורגול מבושל|83|3|18|0.2|כוס=180|
+דגנים ולחמים|קוסקוס מבושל|112|3.8|23|0.2|כוס=160|
+דגנים ולחמים|שיבולת שועל|375|13|66|7|כף=10,כוס=80|
+דגנים ולחמים|גרנולה|450|9|64|18|כף=12|
+דגנים ולחמים|קורנפלקס|375|7|84|0.9|כוס=30|
+דגנים ולחמים|קמח לבן|364|10|76|1|כף=8|
+דגנים ולחמים|לחם לבן פרוסה|265|9|49|3.2|פרוסה=30|פרוסה
+דגנים ולחמים|לחם מלא|250|12|42|3.5|פרוסה=30|פרוסה
+דגנים ולחמים|לחם אחיד פרוסה|245|9|47|2.5|פרוסה=28|פרוסה
+דגנים ולחמים|פיתה לבנה|275|9|55|1.2|פיתה=90|פיתה
+דגנים ולחמים|פיתה מלאה|262|10|51|2.2|פיתה=90|פיתה
+דגנים ולחמים|לחמנייה|290|9|53|4.5|לחמנייה=70|לחמנייה
+דגנים ולחמים|בגט|270|9|56|1.5||
+דגנים ולחמים|טורטיה קמח|310|8|50|8|טורטיה=45|טורטיה
+דגנים ולחמים|פריכיות אורז|387|8|81|3|יחידה=9|יחידה
+ירקות עמילניים|תפוח אדמה מבושל|87|1.9|20|0.1|יחידה=170|
+ירקות עמילניים|תפוח אדמה נא|77|2|17|0.1|יחידה=170|
+ירקות עמילניים|בטטה אפויה|90|2|21|0.1|בטטה=150|
+ירקות עמילניים|בטטה נאה|86|1.6|20|0.1|בטטה=150|
+ירקות עמילניים|תירס מבושל|96|3.4|21|1.5||
+קטניות ושונות|עדשים מבושלות|116|9|20|0.4|כוס=200|
+קטניות ושונות|חומוס גרגירים מבושל|164|8.9|27|2.6|כוס=165|
+קטניות ושונות|שעועית לבנה מבושלת|139|9.7|25|0.4||
+קטניות ושונות|שעועית שחורה מבושלת|132|8.9|23.7|0.5||
+קטניות ושונות|אפונה מבושלת|84|5.4|15|0.2||
+קטניות ושונות|אדממה|121|12|9|5.2||
+קטניות ושונות|טופו|76|8|2|4.8||
+קטניות ושונות|טמפה|192|20|7.6|11||
+קטניות ושונות|חומוס|250|8|15|17|כף=20|
+קטניות ושונות|אבקת חלבון|400|80|8|6|סקופ=30|סקופ
+שומנים ואגוזים|שמן זית|884|0|0|100|כף=13.5,כפית=4.5|כף
+שומנים ואגוזים|שמן קנולה|884|0|0|100|כף=13.5,כפית=4.5|כף
+שומנים ואגוזים|אבוקדו|160|2|8.5|14.7|חצי אבוקדו=75,אבוקדו=150|
+שומנים ואגוזים|טחינה|595|17|21|54|כף=15,כפית=5|כף
+שומנים ואגוזים|חמאת בוטנים|588|25|20|50|כף=16,כפית=5|כף
+שומנים ואגוזים|שקדים|579|21|22|50|חופן=28,יחידה=1.2|
+שומנים ואגוזים|אגוזי מלך|654|15|14|65|חופן=28,יחידה=4|
+שומנים ואגוזים|קשיו|553|18|30|44|חופן=28|
+שומנים ואגוזים|בוטנים קלויים|585|24|21|50|חופן=28|
+שומנים ואגוזים|פיסטוק|560|20|28|45|חופן=28|
+שומנים ואגוזים|זרעי צ׳יה|486|17|42|31|כף=12|
+שומנים ואגוזים|זרעי פשתן|534|18|29|42|כף=10|
+רטבים וממתיקים|מיונז|680|1|1|75|כף=15,כפית=5|כף
+רטבים וממתיקים|קטשופ|105|1.2|25|0.1|כף=17,כפית=6|כף
+רטבים וממתיקים|דבש|304|0.3|82|0|כף=21,כפית=7|כף
+רטבים וממתיקים|סוכר|387|0|100|0|כף=12,כפית=4|כפית
+רטבים וממתיקים|ריבה|250|0.4|65|0.1|כף=20|כף
+רטבים וממתיקים|שוקולד מריר 70%|600|8|45|43|קוביה=10|קוביה
+רטבים וממתיקים|שוקולד חלב|535|8|59|30|קוביה=10|קוביה
+רטבים וממתיקים|ממרח שוקולד|540|6.3|57|31|כף=15|כף
+ירקות|מלפפון|15|0.7|3.6|0.1|יחידה=100|יחידה
+ירקות|עגבנייה|18|0.9|3.9|0.2|יחידה=120|יחידה
+ירקות|עגבניות שרי|18|0.9|3.9|0.2|יחידה=15,חופן=60|
+ירקות|גזר|41|0.9|10|0.2|יחידה=70|יחידה
+ירקות|פלפל אדום|31|1|6|0.3|יחידה=150|יחידה
+ירקות|פלפל ירוק|20|0.9|4.6|0.2|יחידה=120|יחידה
+ירקות|חסה|15|1.4|2.9|0.2||
+ירקות|כרוב|25|1.3|5.8|0.1||
+ירקות|ברוקולי|34|2.8|7|0.4||
+ירקות|כרובית|25|1.9|5|0.3||
+ירקות|בצל|40|1.1|9|0.1|יחידה=110|יחידה
+ירקות|חציל|25|1|6|0.2|יחידה=250|יחידה
+ירקות|קישוא|17|1.2|3.1|0.3|יחידה=200|יחידה
+ירקות|פטריות שמפיניון|22|3.1|3.3|0.3||
+ירקות|תרד|23|2.9|3.6|0.4||
+ירקות|סלק מבושל|44|1.7|10|0.2||
+פירות|תפוח|52|0.3|14|0.2|יחידה=180|יחידה
+פירות|בננה|89|1.1|23|0.3|יחידה=120|יחידה
+פירות|תפוז|47|0.9|12|0.1|יחידה=150|יחידה
+פירות|מנדרינה|53|0.8|13|0.3|יחידה=80|יחידה
+פירות|אשכולית|42|0.8|11|0.1|יחידה=250|יחידה
+פירות|ענבים|69|0.7|18|0.2|חופן=80|
+פירות|תותים|32|0.7|7.7|0.3||
+פירות|אבטיח|30|0.6|7.6|0.2|פרוסה=300|
+פירות|מלון|34|0.8|8.2|0.2||
+פירות|אפרסק|39|0.9|9.5|0.3|יחידה=150|יחידה
+פירות|שזיף|46|0.7|11|0.3|יחידה=65|יחידה
+פירות|מנגו|60|0.8|15|0.4|יחידה=200|יחידה
+פירות|אננס|50|0.5|13|0.1||
+פירות|קיווי|61|1.1|15|0.5|יחידה=75|יחידה
+פירות|אוכמניות|57|0.7|14|0.3|חופן=50|
+פירות|תמר מג׳הול|277|1.8|75|0.2|יחידה=24|יחידה
+פירות|צימוקים|299|3.1|79|0.5|חופן=30|
+משקאות|קפה שחור|2|0.1|0|0|כוס=200|
+משקאות|קולה|42|0|10.6|0|פחית=330|
+משקאות|קולה זירו|0|0|0|0|פחית=330|
+משקאות|מיץ תפוזים|45|0.7|10.4|0.2|כוס=240|
+משקאות|בירה|43|0.5|3.6|0|בקבוק=330|
+משקאות|יין אדום|85|0.1|2.6|0|כוס=150|`.split('\n').map(l=>{const a=l.split('|');return {cat:a[0],n:a[1],k:+a[2],p:+a[3],c:+a[4],f:+a[5],b:'g',u:fdParseU(a[6]||''),pu:a[7]||''}});
 let fdQ='';
 const fdFind=n=>S.foods.find(x=>x.n.trim()===String(n||'').trim());
-function loadFd(){let n=0;BASE_FD.forEach(b=>{if(!fdFind(b.n)){S.foods.push({id:'f'+rid(),...b});n++}});save();render();flash(n?'נוספו '+n+' מאכלים ✓':'כבר הכל קיים')}
-function fdNew(){const g=i=>document.getElementById(i).value.trim(),n=g('fn');if(!n)return flash('יש להזין שם מאכל');const o=fdFind(n),v={n,q:g('fq'),k:num(g('fk')),p:num(g('fp')),c:num(g('fc')),f:num(g('ff'))};if(o)Object.assign(o,v);else S.foods.push({id:'f'+rid(),...v});save();render();flash(o?'המאכל עודכן ✓':'נוסף למאגר ✓')}
+
+/* ---- per-100g food DB: values, units, recalculation ---- */
+function fdParseU(t){return String(t||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean).map(x=>{const m=x.match(/^(.*?)\s*[=:]\s*([\d.,]+)\s*(?:גרם|ג׳|g)?$/)||x.match(/^(.*\S)\s+([\d.,]+)$/);return m?{n:m[1].trim().slice(0,30),g:Math.max(0.1,Math.min(5000,parseFloat(m[2].replace(',','.'))||0))}:null}).filter(u=>u&&u.n&&u.g>0).slice(0,12)}
+const fdUTxt=f=>(f.u||[]).map(u=>u.n+'='+u.g).join(', ');
+const fdG=f=>!!f&&f.b==='g';
+function fdGrams(f,amt,ut){amt=num(amt);if(!fdG(f))return 0;if(!ut||ut==='g')return amt;const u=(f.u||[]).find(x=>x.n===ut);return u?amt*num(u.g):0}
+function fdCalc(f,amt,ut){amt=num(amt);const r=fdG(f)?fdGrams(f,amt,ut)/100:amt,m=x=>Math.round(num(x)*r*10)/10;return {k:m(f.k),p:m(f.p),c:m(f.c),f:m(f.f)}}
+function fdLabel(f,amt,ut){amt=num(amt);if(fdG(f)){if(!ut||ut==='g')return rnd(amt)+' גרם';return rnd(amt)+' '+ut+' (≈'+rnd(fdGrams(f,amt,ut))+' גרם)'}return amt===1?(f.q||'מנה'):rnd(amt)+' × '+(f.q||'מנה')}
+const itemFrom=(f,amt,ut)=>({n:f.n,q:fdLabel(f,amt,ut),...fdCalc(f,amt,ut),fid:f.id,amt:num(amt),ut:ut||'g'});
+function itemRecalc(x){const f=S.foods.find(y=>y.id===x.fid);if(!f)return false;Object.assign(x,{q:fdLabel(f,x.amt,x.ut),...fdCalc(f,x.amt,x.ut)});return true}
+const qSet=(x,k,v)=>{x[k]=k==='amt'?num(v):v;itemRecalc(x);save();render()};
+const fdUnitOpts=(f,sel)=>fdG(f)?`<option value="g" ${!sel||sel==='g'?'selected':''}>גרם</option>${(f.u||[]).map(u=>`<option ${sel===u.n?'selected':''}>${esc(u.n)}</option>`).join('')}`:`<option>${esc(f.q||'מנה')}</option>`;
+function qtyEd(ref,x){const f=S.foods.find(y=>y.id===x.fid);if(!f)return '';return `<div class="row" style="gap:6px;margin:6px 0"><input type="number" inputmode="decimal" step="any" value="${num(x.amt)}" style="flex:1;min-width:0" aria-label="כמות" onchange="qSet(${ref},'amt',this.value)"><select style="flex:1.2;min-width:0" aria-label="יחידה" onchange="qSet(${ref},'ut',this.value)">${fdUnitOpts(f,x.ut)}</select></div><div class="mut" style="font-size:12px">${esc(x.q||'')}</div>`}
+const fdPicker=(id,ph,onAdd)=>`<div class="fp"><div style="position:relative"><input id="${id}" autocomplete="off" placeholder="${ph}" oninput="fdSug('${id}')" onfocus="fdSug('${id}')" onblur="setTimeout(()=>{const l=document.getElementById('${id}-l');if(l)l.hidden=true},180)" onkeydown="if(event.key==='Enter'){event.preventDefault();${onAdd}}"><div class="sg2" id="${id}-l" hidden></div></div><div class="row" style="gap:6px;margin-top:6px"><input id="${id}-a" type="number" inputmode="decimal" step="any" placeholder="כמות" style="flex:1;min-width:0"><select id="${id}-u" style="flex:1.2;min-width:0"><option value="g">גרם</option></select><button class="p" style="flex:none" onclick="${onAdd}">הוסף</button></div></div>`;
+function fdSug(id){const i=document.getElementById(id),l=document.getElementById(id+'-l');if(!i||!l)return;i.dataset.fid='';const q=i.value.trim(),tk=q.split(/\s+/).filter(Boolean);
+ const m=q?S.foods.filter(f=>tk.every(t=>(f.n+' '+(f.cat||'')).includes(t))).sort((a,b)=>(a.n.startsWith(tk[0])?0:1)-(b.n.startsWith(tk[0])?0:1)||a.n.length-b.n.length||a.n.localeCompare(b.n,'he')).slice(0,8):[];
+ l.hidden=!m.length;l.innerHTML=m.map(f=>`<button type="button" onmousedown="event.preventDefault()" onclick="fdChoose('${id}','${f.id}')"><b>${esc(f.n)}</b><span>${fdG(f)?rnd(f.k)+' קל׳ ל־100 גרם':esc(f.q||'מנה')+' · '+rnd(f.k)+' קל׳'}</span></button>`).join('')}
+function fdChoose(id,fid){const f=S.foods.find(x=>x.id===fid),i=document.getElementById(id);if(!f||!i)return;i.value=f.n;i.dataset.fid=fid;const l=document.getElementById(id+'-l');if(l)l.hidden=true;
+ const u=document.getElementById(id+'-u'),a=document.getElementById(id+'-a'),pu=fdG(f)&&f.pu&&(f.u||[]).some(x=>x.n===f.pu)?f.pu:'g';if(u)u.innerHTML=fdUnitOpts(f,pu);if(a){a.value=fdG(f)?(pu==='g'?100:1):1;a.focus();try{a.select()}catch(e){}}}
+function fdRead(id){const i=document.getElementById(id),n=(i&&i.value||'').trim();if(!n)return null;let f=i.dataset.fid&&S.foods.find(x=>x.id===i.dataset.fid);if(!f)f=fdFind(n);const a=document.getElementById(id+'-a'),u=document.getElementById(id+'-u');let amt=a&&a.value!==''?num(a.value):null;const ut=u?u.value:'g';if(f&&amt===null)amt=fdG(f)?(ut&&ut!=='g'?1:100):1;return {n,f,amt,ut}}
+function loadFd(){let n=0,u=0;BASE_FD.forEach(b=>{const o=fdFind(b.n);if(!o){S.foods.push({id:'f'+rid(),...b});n++}else if(!fdG(o)){Object.assign(o,b);delete o.q;u++}});save();render();flash(n||u?('נוספו '+n+' · עודכנו '+u+' ✓'):'כבר הכל קיים')}
+function fdNew(){const g=i=>document.getElementById(i).value.trim(),n=g('fn');if(!n)return flash('יש להזין שם מאכל');const o=fdFind(n),v={n,cat:g('fcat').slice(0,30),b:'g',k:num(g('fk')),p:num(g('fp')),c:num(g('fc')),f:num(g('ff')),u:fdParseU(g('fu')),pu:''};if(v.u[0])v.pu=v.u[0].n;if(o){Object.assign(o,v);delete o.q}else S.foods.push({id:'f'+rid(),...v});save();render();flash(o?'המאכל עודכן ✓':'נוסף למאגר ✓')}
+function fdDup(i){const f=S.foods[i];if(!f)return;const c=JSON.parse(JSON.stringify(f));c.id='f'+rid();c.n=f.n+' (גרסה)';S.foods.splice(i+1,0,c);fdQ=f.n;save();render();flash('נוצרה גרסה. שנה שם וערכים ✓')}
+function fdUnits(i,t){const f=S.foods[i];if(!f)return;f.u=fdParseU(t);if(f.pu&&!f.u.some(x=>x.n===f.pu))f.pu=f.u[0]?f.u[0].n:'';save();render()}
+function fdConv(i){const f=S.foods[i];if(!f)return;let g=0;const m=String(f.q||'').match(/([\d.,]+)\s*(?:גרם|ג׳|g|מ"ל|מל|ml)/i);if(m)g=parseFloat(m[1].replace(',','.'));if(!(g>0)){const a=prompt('כמה גרם יש ב"'+(f.q||'המנה')+'"?','100');g=parseFloat(a);if(!(g>0))return}const r=100/g;['k','p','c','f'].forEach(x=>f[x]=Math.round(num(f[x])*r*10)/10);f.b='g';delete f.q;f.u=f.u||[];save();render();flash('הומר לערכים ל־100 גרם ✓')}
 function fdDel(id){const i=S.foods.findIndex(x=>x.id===id);if(i>=0&&confirm('למחוק את '+S.foods[i].n+' מהמאגר?')){S.foods.splice(i,1);save();render()}}
-function fdSaveFrom(pi,mi,oi,xi){const x=S.plans[pi].meals[mi].opts[oi].items[xi];if(!x||!(x.n||'').trim())return flash('יש לתת שם למאכל');const o=fdFind(x.n),v={n:x.n.trim(),q:x.q||'',k:num(x.k),p:num(x.p),c:num(x.c),f:num(x.f)};if(o)Object.assign(o,v);else S.foods.push({id:'f'+rid(),...v});save();flash(o?'עודכן במאגר ✓':'נשמר במאגר ✓')}
-function fdToOpt(pi,mi,oi,id){const f=S.foods.find(x=>x.id===id);if(!f)return;const q=S.plans[pi].meals[mi].opts[oi];q.items=q.items||[];q.items.push({n:f.n,q:f.q||'',k:f.k,p:f.p,c:f.c,f:f.f});save();render()}
+function fdSaveFrom(pi,mi,oi,xi){const x=S.plans[pi].meals[mi].opts[oi].items[xi];if(!x||!(x.n||'').trim())return flash('יש לתת שם למאכל');const o=fdFind(x.n),v={n:x.n.trim(),b:'s',q:x.q||'',k:num(x.k),p:num(x.p),c:num(x.c),f:num(x.f)};if(o)Object.assign(o,v);else S.foods.push({id:'f'+rid(),...v});save();flash(o?'עודכן במאגר ✓':'נשמר במאגר ✓')}
+function fdToOpt(pi,mi,oi,id){const f=S.foods.find(x=>x.id===id);if(!f)return;const q=S.plans[pi].meals[mi].opts[oi];q.items=q.items||[];q.items.push(itemFrom(f,fdG(f)?100:1,'g'));save();render()}
 const fdOpts=()=>S.foods.slice().sort((a,b)=>a.n.localeCompare(b.n,'he')).map(f=>`<option value="${f.id}">${esc(f.n)} · ${esc(f.q||'')} · ${rnd(f.k)} קל׳</option>`).join('');
-function foodView(){const q=fdQ.trim(),L=S.foods.map((f,i)=>[f,i]).filter(([f])=>!q||f.n.includes(q));
+/* ---- official MoH food DB import ---- */
+let mohD=null,mohOpen=false,mohQ='',mohC='',mohErr='';
+async function mohLoad(){mohOpen=!mohOpen;if(mohOpen&&!mohD){mohErr='';render();try{const r=await fetch('/api/moh',{headers:{'X-App':'1'},credentials:'same-origin'});if(!r.ok)throw 0;mohD=await r.json()}catch(e){mohErr='לא ניתן לטעון את המאגר הרשמי. ודא שהקובץ moh-foods.json.gz הועלה לשרת.'}}render()}
+function mohAdd(i){const r=mohD&&mohD[i];if(!r)return;if(fdFind(r[0]))return flash('כבר קיים במאגר');const u=r[6].map(x=>({n:x[0],g:x[1]}));S.foods.push({id:'f'+rid(),n:r[0].slice(0,120),cat:r[1],b:'g',k:r[2],p:r[3],c:r[4],f:r[5],u,pu:u[0]?u[0].n:''});save();render();flash('נוסף למאגר ✓')}
+function mohAddAll(){const L=mohList();let n=0;L.forEach(([r])=>{if(!fdFind(r[0])){const u=r[6].map(x=>({n:x[0],g:x[1]}));S.foods.push({id:'f'+rid(),n:r[0].slice(0,120),cat:r[1],b:'g',k:r[2],p:r[3],c:r[4],f:r[5],u,pu:u[0]?u[0].n:''});n++}});if(n){save();render()}flash(n?('נוספו '+n+' מאכלים ✓'):'הכל כבר קיים')}
+function mohList(){if(!mohD)return[];const w=mohQ.trim().split(/\s+/).filter(Boolean);if(!w.length&&!mohC)return[];const out=[];for(let i=0;i<mohD.length&&out.length<400;i++){const r=mohD[i];if(mohC&&r[1]!==mohC)continue;if(w.every(x=>r[0].toLowerCase().includes(x.toLowerCase())))out.push([r,i])}return out}
+function mohHtml(){const L=mohList(),cats=mohD?[...new Set(mohD.map(r=>r[1]))].sort((a,b)=>a.localeCompare(b,'he')):[];
+ return `<div style="margin-top:12px">${mohErr?`<div class="mut" style="color:var(--bad,#f66)">${mohErr}</div>`:!mohD?'<div class="mut">טוען מאגר…</div>':`<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input id="mhq" placeholder="חיפוש במאגר (למשל: חזה עוף, ביצה, אסם)" value="${esc(mohQ)}" oninput="mohQ=this.value;const p=this.selectionStart;render();const e=document.getElementById('mhq');if(e){e.focus();e.setSelectionRange(p,p)}"><select onchange="mohC=this.value;render()"><option value="">כל הקטגוריות</option>${cats.map(c=>`<option ${c===mohC?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+ <div class="mut" style="margin:8px 0">${mohD.length} מאכלים במאגר. ${L.length?`נמצאו ${L.length>=400?'400+':L.length}`:'התחל להקליד כדי לחפש'}${L.length>1?` · <a href="#" onclick="mohAddAll();return false">הוסף את כולם</a>`:''}</div>
+ ${L.slice(0,60).map(([r,i])=>{const has=fdFind(r[0]);return `<div class="row sp" style="padding:8px 0;border-top:1px solid var(--line,rgba(255,255,255,.08));gap:8px"><div style="min-width:0;flex:1"><b style="font-size:14px">${esc(r[0])}</b><div class="mut" style="font-size:12px">${r[7]==='o'?'מוצר ארוז · ':''}${esc(r[1])} · ${rnd(r[2])} קל׳ · ח׳ ${rnd(r[3])} · פ׳ ${rnd(r[4])} · ש׳ ${rnd(r[5])} (ל־100 ג׳)${r[6].length?' · '+r[6].slice(0,3).map(x=>esc(x[0])+' '+rnd(x[1])+'ג׳').join(', '):''}</div></div>${has?'<span class="mut">קיים ✓</span>':`<button class="g" style="font-size:12px;padding:4px 10px" onclick="mohAdd(${i})">הוסף</button>`}</div>`}).join('')}${L.length>60?'<div class="mut" style="margin-top:8px">מוצגות 60 תוצאות ראשונות. צמצם את החיפוש.</div>':''}`}</div>`}
+function foodView(){const q=fdQ.trim(),L=S.foods.map((f,i)=>[f,i]).filter(([f])=>!q||(f.n+' '+(f.cat||'')).includes(q));
  return `<div class="row sp" style="margin-bottom:12px"><div><h2 class="h2" style="margin:0">מאגר מאכלים</h2><div class="mut">מאכלים עם ערכים מלאים, לבנייה מהירה של תפריטים ולהוספה אצל המתאמנים</div></div><span class="mut">${S.foods.length} מאכלים</span></div>
- <div class="card" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>מאכלי בסיס</b><div class="mut">${BASE_FD.length} מאכלים נפוצים עם ערכים משוערים. כדאי לעבור ולעדכן לפי המוצרים שלכם. קיימים לא יוכפלו.</div></div><button class="p" onclick="loadFd()">טען למאגר</button></div>
- <details class="card" ${OP.has('fdn')||!S.foods.length?'open':''} ontoggle="tgo('fdn',this.open)"><summary class="sum"><h2 style="margin:0">הוספת מאכל</h2></summary><div style="margin-top:12px;display:grid;gap:8px"><input id="fn" placeholder="שם המאכל"><input id="fq" placeholder="כמות (למשל 100 גרם)"><div class="g4"><input id="fk" type="number" placeholder="קל׳"><input id="fp" type="number" placeholder="חלבון"><input id="fc" type="number" placeholder="פחמ׳"><input id="ff" type="number" placeholder="שומן"></div><button class="p" onclick="fdNew()">הוסף למאגר</button></div></details>
+ <div class="card"><div class="row sp" style="gap:12px;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>המאגר הרשמי של משרד הבריאות</b><div class="mut">כ־5,500 מאכלים ומוצרים ישראליים (צמרת של משרד הבריאות ו־Open Food Facts) עם ערכים ל־100 גרם ומשקלי יחידות. חפש והוסף רק את מה שאתה צריך. מאכלים שכבר קיימים אצלך לא ישונו.</div></div><button class="p" onclick="mohLoad()">${mohOpen?'סגור':'חיפוש וייבוא'}</button></div>${mohOpen?mohHtml():''}</div>
+ <div class="card" style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><div style="flex:1;min-width:200px"><b>מאכלי בסיס</b><div class="mut">${BASE_FD.length} מאכלים נפוצים עם ערכים ל־100 גרם ויחידות. הערכים משוערים, ומומלץ לתקן לפי המוצרים שלכם. מאכלים קיימים לא יוכפלו, ומאכלים ישנים (ערכים למנה) יתעדכנו.</div></div><button class="p" onclick="loadFd()">טען למאגר</button></div>
+ <details class="card" ${OP.has('fdn')||!S.foods.length?'open':''} ontoggle="tgo('fdn',this.open)"><summary class="sum"><h2 style="margin:0">הוספת מאכל</h2></summary><div style="margin-top:12px;display:grid;gap:8px"><input id="fn" placeholder="שם המאכל (כולל סוג/מותג, למשל חלב 1% או קטשופ היינץ)"><input id="fcat" placeholder="קטגוריה (לא חובה)"><div class="mut" style="font-size:12.5px">ערכים ל־100 גרם (או 100 מ״ל):</div><div class="g4"><input id="fk" type="number" placeholder="קל׳"><input id="fp" type="number" placeholder="חלבון"><input id="fc" type="number" placeholder="פחמ׳"><input id="ff" type="number" placeholder="שומן"></div><input id="fu" placeholder="יחידות (לא חובה): ביצה=58, פרוסה=30, כף=15"><button class="p" onclick="fdNew()">הוסף למאגר</button></div></details>
  <input id="fdq" placeholder="חיפוש מאכל" value="${esc(fdQ)}" oninput="fdQ=this.value;const p=this.selectionStart;render();const e=document.getElementById('fdq');if(e){e.focus();e.setSelectionRange(p,p)}" style="margin:10px 0">
- ${L.map(([f,i])=>{const b='foods.'+i;return `<div class="card" style="padding:12px"><div class="row sp"><b>${esc(f.n)}</b><button class="x" aria-label="מחק" onclick="fdDel('${f.id}')">✕</button></div><div class="ir" style="grid-template-columns:1.4fr repeat(4,1fr);margin-top:6px">${inp(b+'.q',f.q||'','כמות')}${inp(b+'.k',f.k,'0','number')}${inp(b+'.p',f.p,'0','number')}${inp(b+'.c',f.c,'0','number')}${inp(b+'.f',f.f,'0','number')}</div><div class="ir hd" style="grid-template-columns:1.4fr repeat(4,1fr)"><span>כמות</span><span>קל׳</span><span>חלבון</span><span>פחמ׳</span><span>שומן</span></div></div>`}).join('')||'<div class="card mut">לא נמצאו מאכלים</div>'}`}
+ ${L.map(([f,i])=>{const b='foods.'+i,g=fdG(f);return `<div class="card" style="padding:12px"><div class="row sp"><div style="min-width:0"><b>${esc(f.n)}</b>${f.cat?` <span class="mut">· ${esc(f.cat)}</span>`:''}</div><div class="row" style="gap:4px"><button class="g" style="font-size:12px;padding:4px 8px" onclick="fdDup(${i})">שכפל כגרסה</button><button class="x" aria-label="מחק" onclick="fdDel('${f.id}')">✕</button></div></div>${g?'<div class="mut" style="font-size:12px;margin-top:4px">ערכים ל־100 גרם</div>':`<div class="mut" style="font-size:12px;margin-top:4px">ערכים ל־${esc(f.q||'מנה')} <button class="g" style="font-size:12px;padding:2px 8px" onclick="fdConv(${i})">המר ל־100 גרם</button></div>`}<div class="ir" style="grid-template-columns:repeat(4,1fr);margin-top:6px">${inp(b+'.k',f.k,'0','number')}${inp(b+'.p',f.p,'0','number')}${inp(b+'.c',f.c,'0','number')}${inp(b+'.f',f.f,'0','number')}</div><div class="ir hd" style="grid-template-columns:repeat(4,1fr)"><span>קל׳</span><span>חלבון</span><span>פחמ׳</span><span>שומן</span></div>${g?`<input placeholder="יחידות: ביצה=58, פרוסה=30" value="${esc(fdUTxt(f))}" style="margin-top:8px" onchange="fdUnits(${i},this.value)">`:''}</div>`}).join('')||'<div class="card mut">לא נמצאו מאכלים</div>'}`}
 function overview(){const ts=S.users.filter(x=>x.role==='t'&&x.status==='פעיל'),wk=Date.now()-7*864e5;
  const al=ts.flatMap(u=>alerts(u).map(a=>[u,a])),rec=ts.flatMap(u=>(u.log||[]).map(r=>[u,r])).sort((a,b)=>b[1].date-a[1].date).slice(0,6),r7=ts.flatMap(u=>(u.log||[]).filter(r=>r.date>wk)),avg=r7.length?(r7.reduce((s,r)=>s+r.rpe,0)/r7.length).toFixed(1):'—';
  return `${today(ts)}${subOverview()}<div class="stats s4"><div><b>${ts.length}</b><span>מתאמנים פעילים</span></div><div><b>${ts.filter(u=>lastTrain(u)<=7).length}</b><span>התאמנו השבוע</span></div><div><b>${al.length}</b><span>התראות</span></div><div><b>${avg}</b><span>קושי ממוצע (7 ימים)</span></div></div>
