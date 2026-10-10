@@ -88,7 +88,7 @@ app.use(express.json({ limit: '3mb' }));
 app.use((req, res, next) => {
   res.set({
     'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self'; frame-ancestors 'none'"
   });
   if (PROD && req.headers['x-forwarded-proto'] === 'http') return res.redirect(301, 'https://' + req.headers.host + req.url);
   next();
@@ -336,6 +336,13 @@ app.get('/api/moh', wrap((req, res) => {
   auth(req);
   const p = [path.join(__dirname, 'moh-foods.json.gz'), path.join(__dirname, 'public', 'moh-foods.json.gz')].find(x => fs.existsSync(x));
   if (!p) return res.status(404).json({ error: 'המאגר הרשמי לא הועלה' });
+  res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
+  res.sendFile(p);
+}));
+app.get('/api/exlib', wrap((req, res) => {
+  auth(req);
+  const p = [path.join(__dirname, 'exlib.json.gz'), path.join(__dirname, 'public', 'exlib.json.gz')].find(x => fs.existsSync(x));
+  if (!p) return res.status(404).json({ error: 'קטלוג התרגילים לא הועלה' });
   res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
   res.sendFile(p);
 }));
