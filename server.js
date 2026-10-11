@@ -310,6 +310,57 @@ setInterval(() => {
   if (!r || Date.now() - Number(r.v) > 23 * 3600e3) autoBackup('daily');
 }, 3600e3);
 
+// ---------- AI assistant for the coach (drafts only, coach reviews everything) ----------
+const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-5-5', AI_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 40;
+let exNames = null;
+function exByGroup() {
+  if (exNames) return exNames;
+  const p = [path.join(__dirname, 'exlib.json.gz'), path.join(__dirname, 'public', 'exlib.json.gz')].find(x => fs.existsSync(x));
+  const g = {};
+  if (p) { try { JSON.parse(require('zlib').gunzipSync(fs.readFileSync(p)).toString()).forEach(r => { (g[r[1] || 'אחר'] = g[r[1] || 'אחר'] || []).push(r[0]); }); } catch (e) {} }
+  return (exNames = g);
+}
+async function aiAsk(system, user) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) fail(503, 'עוזר ה-AI לא מוגדר: חסר ANTHROPIC_API_KEY בשרת');
+  const day = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jerusalem' }), k = 'ai:' + day;
+  const used = Number((db.prepare('select v from kv where k=?').get(k) || {}).v || 0);
+  if (used >= AI_LIMIT) fail(429, 'הגעת למגבלת השימוש היומית ב-AI (' + AI_LIMIT + ')');
+  db.prepare("insert into kv(k,v) values(?,?) on conflict(k) do update set v=excluded.v").run(k, String(used + 1));
+  const r = await fetch((process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, system, messages: [{ role: 'user', content: user }] }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { console.log('[ai] error', r.status, JSON.stringify(j).slice(0, 300)); fail(502, 'שגיאה משירות ה-AI (' + r.status + ')'); }
+  const txt = (j.content || []).map(c => c.text || '').join('');
+  const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
+  try { return JSON.parse(txt.slice(a, b + 1)); } catch (e) { fail(502, 'תשובת ה-AI לא הייתה תקינה, נסה שוב'); }
+}
+app.get('/api/ai/status', wrap((req, res) => { auth(req, 'coach'); res.json({ on: !!process.env.ANTHROPIC_API_KEY, model: AI_MODEL }); }));
+app.post('/api/ai/draft', wrap(async (req, res) => {
+  auth(req, 'coach');
+  const { kind, uid, brief } = req.body || {};
+  if (!['plan', 'prog'].includes(kind) || !obj(brief)) fail(400, 'בקשה לא תקינה');
+  const row = db.prepare("select data from users where id=? and role='trainee'").get(String(uid || ''));
+  if (!row) fail(404, 'מתאמן לא נמצא');
+  const u = J(row.data), t = (v, m) => (typeof v === 'string' ? v.trim().slice(0, m) : ''), n = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
+  const w = (u.weights || []).slice(-6).map(x => ({ date: x[0], kg: x[1] }));
+  const ctx = { name: String(u.name || '').split(' ')[0], recentWeights: w, supplements: t(u.supp, 200), cardio: t(u.cardio, 200), coachRequest: t(brief.text, 800), goal: t(brief.goal, 60), level: t(brief.level, 40), equipment: t(brief.equip, 200), restrictions: t(brief.restr, 300) };
+  const SYS = 'אתה עוזר למאמן כושר ישראלי. אתה מכין טיוטה בלבד, והמאמן יבדוק ויערוך הכול לפני שהמתאמן יראה אותה. כתוב בעברית. אל תיתן ייעוץ רפואי, ואל תציע דיאטות קיצוניות (לא פחות מ-1200 קלוריות ביום). אם יש מגבלה רפואית או פציעה, התחשב בה בזהירות והזכר ב-summary שהמאמן צריך לאמת. החזר JSON תקין בלבד, בלי טקסט לפניו או אחריו.';
+  if (kind === 'plan') {
+    const cal = n(brief.kcal, 0, 6000), meals = n(brief.meals, 2, 8) || 5;
+    const out = await aiAsk(SYS, 'בנה טיוטת תפריט תזונה יומי למתאמן.\nנתונים: ' + JSON.stringify(ctx) + '\nקלוריות יעד ליום: ' + (cal || 'לפי שיקול דעתך, לפי המטרה והמשקל') + '\nמספר ארוחות: ' + meals + '\n\nחוקים: לכל ארוחה 1 עד 2 אפשרויות (opts) להחלפה. כל אפשרות כוללת items עם שם מאכל ישראלי נפוץ וכללי בעברית פשוטה (למשל "חזה עוף צלוי", "אורז לבן מבושל", "ביצה קשה", "יוגורט 3%", "לחם מלא פרוס"), וכמות בגרם (g, מספר שלם; ביצה = 60, פרוסת לחם = 30). אל תכתוב מותגים. כוון לסכום קלוריות יומי קרוב ליעד, ולחלבון של כ-1.6 עד 2.2 גרם לק"ג אם המשקל ידוע.\nפורמט: {"name":"שם התפריט","summary":"2-3 שורות למאמן: מה בנית ומה לבדוק","meals":[{"n":"ארוחת בוקר","opts":[{"d":"אפשרות א׳","items":[{"n":"...","g":100}]}]}]}');
+    const meals2 = (Array.isArray(out.meals) ? out.meals : []).slice(0, 8).map(m => ({ n: t(m.n, 40) || 'ארוחה', opts: (Array.isArray(m.opts) ? m.opts : []).slice(0, 3).map(o => ({ d: t(o.d, 60), items: (Array.isArray(o.items) ? o.items : []).slice(0, 12).filter(x => obj(x) && t(x.n, 80)).map(x => ({ n: t(x.n, 80), g: n(x.g, 1, 1500) })) })).filter(o => o.items.length) })).filter(m => m.opts.length);
+    if (!meals2.length) fail(502, 'ה-AI לא החזיר תפריט, נסה שוב');
+    return res.json({ name: t(out.name, 80) || 'תפריט AI', summary: t(out.summary, 600), meals: meals2 });
+  }
+  const g = exByGroup(), days = n(brief.days, 1, 7) || 3;
+  const list = Object.keys(g).map(k => k + ': ' + g[k].join(' | ')).join('\n');
+  const out = await aiAsk(SYS, 'בנה טיוטת תוכנית אימון כוח למתאמן.\nנתונים: ' + JSON.stringify(ctx) + '\nמספר ימי אימון בשבוע: ' + days + '\n\nחוקים: בחר תרגילים אך ורק משמות הרשימה למטה, מילה במילה. 5 עד 8 תרגילים ליום, קודם תרגילים מורכבים. לכל תרגיל: sets (1-6), rep (טווח כמו "8-12"), rest (שניות, 30-240). חלק לימים הגיוני (למשל פולבודי, או חזה/גב/רגליים), והתחשב בציוד ובמגבלות.\nרשימת התרגילים לפי קבוצת שריר:\n' + list + '\nפורמט: {"name":"שם התוכנית","summary":"2-3 שורות למאמן","days":[{"name":"יום 1 · חזה וכתפיים","ex":[{"n":"שם מהרשימה","sets":3,"rep":"8-12","rest":90}]}]}');
+  const all = new Set(Object.values(g).flat());
+  const days2 = (Array.isArray(out.days) ? out.days : []).slice(0, 7).map(d => ({ name: t(d.name, 60) || 'יום', ex: (Array.isArray(d.ex) ? d.ex : []).slice(0, 12).filter(x => obj(x) && t(x.n, 80)).map(x => ({ n: t(x.n, 80), sets: n(x.sets, 1, 8) || 3, rep: t(String(x.rep == null ? '' : x.rep), 10) || '8-12', rest: n(x.rest, 0, 300) || 90, known: all.has(t(x.n, 80)) })) })).filter(d => d.ex.length);
+  if (!days2.length) fail(502, 'ה-AI לא החזיר תוכנית, נסה שוב');
+  res.json({ name: t(out.name, 80) || 'תוכנית AI', summary: t(out.summary, 600), days: days2 });
+}));
+
 // ---------- web push (rest-timer notifications) ----------
 let webpush = null; try { webpush = require('web-push'); } catch (e) { console.log('[push] web-push not installed, notifications disabled'); }
 db.exec("create table if not exists kv(k text primary key, v text not null); create table if not exists push_subs(endpoint text primary key, user_id text not null, data text not null)");
