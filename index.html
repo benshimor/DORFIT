@@ -224,7 +224,7 @@ button:active,.chk:active,.li:active,.cib:active,.opt:active{transform:scale(.96
 #app.vin>*{animation:vin .3s cubic-bezier(.22,1,.36,1) both}
 @keyframes sup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 @keyframes fin{from{opacity:0}to{opacity:1}}
-.sheet,.inst{animation:sup .32s cubic-bezier(.22,1,.36,1)}.sov{animation:fin .22s ease}
+.sheet,.inst{animation:sup .32s cubic-bezier(.22,1,.36,1)}.sov{animation:fin .22s ease}.sheet.na,.sov.na{animation:none}.aib{width:100%;display:block;text-align:center;border:0;border-radius:16px;padding:13px 14px;color:#fff;background:linear-gradient(120deg,#7c5cff,#2f80ff 55%,#19c3a6);background-size:200% 100%;animation:aibg 6s ease infinite;box-shadow:0 6px 18px rgba(80,100,255,.35);font-weight:800}.aib span{font-size:17px;display:block}.aib small{display:block;font-weight:500;opacity:.92;margin-top:2px;font-size:12.5px}@keyframes aibg{50%{background-position:100% 0}}@media (prefers-reduced-motion:reduce){.aib{animation:none}}
 .timer,.rest{animation:sup .28s cubic-bezier(.22,1,.36,1)}
 .card,.ex{transition:box-shadow .25s,border-color .25s}
 details>.body{animation:fin .25s ease}
@@ -678,7 +678,7 @@ function plOne(pi){const p=S.plans[pi];migPlan(p);return `<div class="card">${in
  <button class="p" style="width:100%;padding:13px" onclick="S.plans[${pi}].meals.push({n:'ארוחה חדשה',opts:[newOpt()]});OP.add('m${pi}-${p.meals.length}');save();render()">+ הוסף ארוחה</button>`}
 function coachDetail(u){const ix=S.users.indexOf(u),al=alerts(u),n=planOf(u).meals.length,L=u.last,c=u.checkin;
  const head=`<div class="row" style="gap:14px;margin-bottom:14px"><span class="av lg">${u.name.trim()[0]}</span><div style="flex:1"><h1 class="h1">${u.name}</h1><span class="mut">${u.block.n} · שבוע ${u.block.w} מתוך ${u.block.of}${u.status!=='פעיל'?' · '+u.status:''}</span></div>${u.phone?`<a class="g" style="padding:10px 14px;border-radius:12px;border:1px solid var(--line);color:var(--ink)" target="_blank" rel="noopener" href="${waLink(u,'היי '+u.name.split(' ')[0]+', תזכורת קטנה למלא את הצ׳ק-אין היומי באפליקציה 💪')}">וואטסאפ</a>`:''}<button class="g" onclick="resetPw('${u.id}')">פרטי כניסה חדשים</button></div>
- <div style="margin:0 0 10px"><button class="g" style="width:100%;border:1px solid var(--line)" onclick="aiOpen('${u.id}')">✨ עוזר AI · הצע טיוטת תפריט או תוכנית</button></div>
+ <div style="margin:0 0 10px"><button class="aib" onclick="aiOpen('${u.id}')"><span>✨ עוזר AI</span><small>בונה טיוטת תפריט או תוכנית אימון עבור ${esc(u.name.split(' ')[0])}</small></button></div>
  <div class="nav">${[['sum','סקירה'],['wk','אימונים'],['nu','תזונה'],['ins','עוד']].map(([k,l])=>`<button class="${(k==='ins'?['ins','log','set','sub'].includes(dtab):dtab===k)?'on':''}" onclick="dtab='${k}';render()">${l}</button>`).join('')}</div>${['ins','log','set','sub'].includes(dtab)?`<div class="row wr" style="gap:8px;margin:10px 0">${[['ins','תוספים ואירובי'],['log','היסטוריה'],['set','הגדרות'],['sub','פרטי מנוי']].map(([k,l])=>`<button class="${dtab===k?'p':'g'}" style="padding:8px 14px;font-size:13.5px" onclick="dtab='${k}';render()">${l}</button>`).join('')}</div>`:''}`;
  let b='';
  if(dtab==='sum')b=`${al.length?`<div class="row wr" style="margin-bottom:14px">${al.map(a=>`<span class="pill ${a[0]}">${a[1]}</span>`).join('')}</div>`:''}
@@ -1141,30 +1141,45 @@ function adSheetOk(){const h=AD.sh;if(!h||!(num(h.amt)>0))return softToast('הז
 let aiSh=null;
 const aiOpen=uid=>{aiSh={u:uid,kind:'plan',busy:false,err:'',on:null,f:{text:'',goal:'חיטוב',kcal:'',meals:'5',p:'',c:'',f:'',days:'3',level:'בינוני',equip:'חדר כושר מלא',restr:''}};render();api('GET','/api/ai/status').then(r=>{if(aiSh)aiSh.on=!!r.on;render()}).catch(()=>{if(aiSh){aiSh.on=false;render()}})};
 const aiSet=(k,v)=>{if(aiSh)aiSh.f[k]=v};
-function aiSheet(){if(!aiSh)return '';const u=U(aiSh.u);if(!u){aiSh=null;return ''}const f=aiSh.f,pl=aiSh.kind==='plan';
+function aiSheet(){if(!aiSh)return '';const u=U(aiSh.u);if(!u){aiSh=null;return ''}const f=aiSh.f,pl=aiSh.kind==='plan',na=aiSh.shown?' na':'';aiSh.shown=true;
  const inp=(k,ph,t)=>`<input ${t?`type="${t}" inputmode="numeric"`:''} placeholder="${ph}" value="${esc(f[k])}" oninput="aiSet('${k}',this.value)">`;
  const lab=(t,h)=>`<label style="display:block;flex:1"><span class="mut" style="font-size:12px;display:block;margin-bottom:3px">${t}</span>${h}</label>`;
  const selN=(k,opts)=>`<select onchange="aiSet('${k}',this.value)">${opts.map(o=>`<option ${String(f[k])===String(o)?'selected':''}>${o}</option>`).join('')}</select>`;
  const sel=(k,opts)=>`<select onchange="aiSet('${k}',this.value)">${opts.map(o=>`<option ${f[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
- return `<div class="sov" onclick="if(!aiSh.busy){aiSh=null;render()}"></div><div class="sheet" style="max-height:88vh;overflow:auto"><div class="grab"></div><div class="row sp" style="margin-bottom:6px"><b style="font-size:18px">✨ עוזר AI · ${esc(u.name.split(' ')[0])}</b><button class="g" style="padding:6px 10px" onclick="if(!aiSh.busy){aiSh=null;render()}">✕</button></div>
- <div class="mut" style="font-size:12.5px;margin-bottom:10px">ה-AI מכין טיוטה בלבד. היא נשמרת בתבניות, ואתה עורך ומאשר לפני שהמתאמן רואה אותה.</div>
- ${aiSh.on===false?`<div class="card" style="border:1px solid var(--warn)"><b>העוזר עוד לא מופעל</b><div class="mut" style="font-size:13px;margin-top:4px">צריך להגדיר ב-Railway את המשתנה <b dir="ltr">GEMINI_API_KEY</b>.</div></div>`:''}
+ return `<div class="sov${na}" onclick="if(!aiSh.busy){aiSh=null;render()}"></div><div class="sheet${na}" style="max-height:88vh;overflow:auto"><div class="grab"></div><div class="row sp" style="margin-bottom:6px"><b style="font-size:18px">✨ עוזר AI · ${esc(u.name.split(' ')[0])}</b><button class="g" style="padding:6px 10px" onclick="if(!aiSh.busy){aiSh=null;render()}">✕</button></div>
+ <div class="mut" style="font-size:12.5px;margin-bottom:10px">ה-AI מכין טיוטה בלבד. תראה אותה לפני שמירה, ותבחר לשמור אצל המתאמן, כתבנית או לערוך לפני שהמתאמן רואה אותה.</div>
+ ${aiSh.res?aiResult(u):`${aiSh.on===false?`<div class="card" style="border:1px solid var(--warn)"><b>העוזר עוד לא מופעל</b><div class="mut" style="font-size:13px;margin-top:4px">צריך להגדיר ב-Railway את המשתנה <b dir="ltr">GEMINI_API_KEY</b>.</div></div>`:''}
  <div class="row" style="gap:6px;margin-bottom:10px"><button class="${pl?'p':'g'}" style="flex:1" onclick="aiSh.kind='plan';render()">תפריט תזונה</button><button class="${pl?'g':'p'}" style="flex:1" onclick="aiSh.kind='prog';render()">תוכנית אימון</button></div>
  <div style="display:grid;gap:8px"><textarea rows="3" placeholder="${pl?'מה לבנות? למשל: ירידה במשקל, אוהב ארוחות גדולות בערב, לא אוכל חלב':'מה לבנות? למשל: מתחיל, דגש על רגליים וישבן, פציעה קלה בכתף'}" oninput="aiSet('text',this.value)">${esc(f.text)}</textarea>
  <div class="row" style="gap:8px;align-items:flex-end"><div style="flex:1">${lab('מטרה',sel('goal',['חיטוב','מסה','שמירה','כוח']))}</div>${pl?`<div style="flex:1">${lab('קלוריות ליום',inp('kcal','למשל 2000','number'))}</div><div style="flex:1">${lab('מס׳ ארוחות',inp('meals','5','number'))}</div>`:`<div style="flex:1">${lab('רמה',sel('level',['מתחיל','בינוני','מתקדם']))}</div><div style="flex:1">${lab('אימונים בשבוע',selN('days',[1,2,3,4,5,6]))}</div>`}</div>
  ${pl?`<div class="mut" style="font-size:12px;margin-top:2px">סה״כ יומי לפי מאקרו (לא חובה, אפשר להשאיר ריק ויחושב לפי הקלוריות):</div><div class="row" style="gap:8px">${lab('חלבון (ג׳)',inp('p','150','number'))}${lab('פחמימה (ג׳)',inp('c','200','number'))}${lab('שומן (ג׳)',inp('f','60','number'))}</div>`:''}
  ${pl?inp('restr','הגבלות או אלרגיות (לא חובה)'):inp('equip','ציוד (חדר כושר מלא / בית עם משקולות...)')+inp('restr','פציעות או הגבלות (לא חובה)')}
  ${aiSh.err?`<div class="err">${esc(aiSh.err)}</div>`:''}
- <button class="p" style="padding:13px" ${aiSh.busy||aiSh.on===false?'disabled':''} onclick="aiGo()">${aiSh.busy?'מכין טיוטה... (עד חצי דקה)':'צור טיוטה'}</button></div></div>`}
+ <button class="p" style="padding:13px" ${aiSh.busy||aiSh.on===false?'disabled':''} onclick="aiGo()">${aiSh.busy?'מכין טיוטה... (עד חצי דקה)':'צור טיוטה'}</button></div>`}</div>`}
 function aiFood(name){const t=String(name).replace(/[,.()]/g,' ').split(/\s+/).filter(Boolean);for(let n=t.length;n>=1;n--){const q=t.slice(0,n).join(' '),m=fdMatch(q,1)[0];if(m){const f=m.f||mohToFood(m.m);if(f)return {f,exact:n===t.length}}}return null}
+
+const aiTot=c=>{let k=0,p=0;(c.meals||[]).forEach(m=>{const o=m.opts[0];if(o)(o.items||[]).forEach(x=>{k+=+x.k||0;p+=+x.p||0})});return {k:Math.round(k),p:Math.round(p)}};
+function aiSave(mode){const a=aiSh;if(!a||!a.res)return;const u=U(a.u),R=a.res,pl=R.kind==='plan';
+ if(mode==='u'){const has=pl?S.plans.some(p=>p.owner===u.id):S.progs.some(p=>p.owner===u.id);if(has&&!confirm('ל'+u.name+' כבר יש '+(pl?'תפריט':'תוכנית')+' אישית. להחליף אותה בטיוטה?'))return;
+  if(pl){const c=dup(R.c);c.id='p'+rid();c.owner=u.id;c.name=R.nm+' – '+u.name;S.plans=S.plans.filter(p=>p.owner!==u.id);S.plans.push(c);u.plan=c.id;u.ms=[]}
+  else{const c=cloneProg(R.c,R.nm+' – '+u.name);c.owner=u.id;S.progs=S.progs.filter(p=>p.owner!==u.id);S.progs.push(c);u.progs=[c.id];u.act=null}
+  R.saved.push('u');save();render();return}
+ if(mode==='t'){if(pl){const c=dup(R.c);c.id='p'+rid();c.name=R.nm;S.plans.push(c)}else S.progs.push(cloneProg(R.c,R.nm));R.saved.push('t');save();render();return}
+ if(mode==='e'){let id;if(pl){const c=dup(R.c);c.id='p'+rid();c.name=R.nm;S.plans.push(c);id=c.id}else{const c=cloneProg(R.c,R.nm);S.progs.push(c);id=c.id}
+  aiDone=R.summary+(R.note?'\n\n'+R.note:'');save();aiSh=null;pl?editPlan(id):editProg(id)}}
+function aiResult(u){const R=aiSh.res,pl=R.kind==='plan',sv=R.saved,t=pl?aiTot(R.c):null;
+ const stat=pl?`${R.c.meals.length} ארוחות · בערך ${t.k} קלוריות · ${t.p} גרם חלבון (לפי האפשרות הראשונה בכל ארוחה)`:`${R.c.days.length} ימים · ${R.c.days.reduce((n,d)=>n+d.ex.length,0)} תרגילים`;
+ const det=pl?R.c.meals.map(m=>`<div style="margin-top:6px"><b>${esc(m.n)}</b> <span class="mut">${m.opts[0].items.map(x=>esc(x.n)).join(', ')}</span></div>`).join(''):R.c.days.map(d=>`<div style="margin-top:6px"><b>${esc(d.name)}</b> <span class="mut">${d.ex.map(x=>esc(x.n)).join(', ')}</span></div>`).join('');
+ return `<div class="card" style="border:1px solid var(--acc);margin:0 0 10px"><b>${esc(R.nm)}</b><div class="mut" style="font-size:13px;margin-top:3px">${stat}</div><div style="white-space:pre-line;font-size:13.5px;margin-top:8px">${esc(R.summary||'')}</div>${R.note?`<div style="white-space:pre-line;font-size:12.5px;margin-top:8px;color:var(--warn)">${esc(R.note)}</div>`:''}<details style="margin-top:8px"><summary class="mut" style="cursor:pointer">מה בטיוטה</summary><div style="font-size:13px">${det}</div></details></div>
+ <div style="display:grid;gap:8px"><button class="p" style="padding:13px" onclick="aiSave('u')">${sv.includes('u')?'✓ נשמר אצל '+esc(u.name.split(' ')[0])+' (שמור שוב)':'💾 שמור אצל '+esc(u.name.split(' ')[0])}</button><button class="g" style="padding:12px;border:1px solid var(--line)" onclick="aiSave('t')">${sv.includes('t')?'✓ נשמר כתבנית (שמור עוד עותק)':'📋 שמור כתבנית'}</button><button class="g" style="padding:12px;border:1px solid var(--line)" onclick="aiSave('e')">✏️ שמור כתבנית ופתח לעריכה</button><div class="row" style="gap:8px"><button class="g" style="flex:1;padding:10px" onclick="aiSh.res=null;render()">↩ צור מחדש</button><button class="g" style="flex:1;padding:10px" onclick="aiSh=null;render()">סגור</button></div></div>`}
 async function aiGo(){if(!aiSh||aiSh.busy)return;const u=U(aiSh.u),f=aiSh.f,pl=aiSh.kind==='plan';aiSh.busy=true;aiSh.err='';render();
  try{await mohEnsureP();exEnsure&&await exEnsure();
   const r=await api('POST','/api/ai/draft',{kind:aiSh.kind,uid:u.id,brief:{text:f.text,goal:f.goal,kcal:f.kcal,meals:f.meals,p:f.p,c:f.c,f:f.f,days:f.days,level:f.level,equip:f.equip,restr:f.restr}});
   const nm=(r.name||'טיוטה').replace(/^טיוטת?\s*AI\s*[·-]\s*/,'');
   if(pl){const miss=[],apx=[];const meals=r.meals.map(m=>({n:m.n,opts:m.opts.map(o=>({d:o.d,items:o.items.map(x=>{const a=aiFood(x.n);if(a){if(!a.exact)apx.push(x.n+' ← '+a.f.n);return itemFrom(a.f,fdG(a.f)?x.g:1,'g')}miss.push(x.n);return {n:x.n,q:x.g+' גרם',k:0,p:0,c:0,f:0}})}))}));
-   const c={id:'p'+rid(),name:'טיוטת AI · '+nm+' · '+u.name,meals};S.plans.push(c);save();aiSh=null;aiDone=r.summary+(apx.length?'\n\nהותאמו למאכל קרוב במאגר (כדאי לבדוק): '+apx.join(' · '):'')+(miss.length?'\n\nמאכלים שלא נמצאו במאגר (הערכים שלהם 0, יש להשלים): '+miss.join(', '):'');editPlan(c.id)}
+   aiSh.busy=false;aiSh.res={kind:'plan',nm,c:{meals},summary:r.summary,note:(apx.length?'הותאמו למאכל קרוב במאגר (כדאי לבדוק): '+apx.join(' · '):'')+(miss.length?(apx.length?'\n\n':'')+'מאכלים שלא נמצאו במאגר (הערכים שלהם 0, יש להשלים): '+miss.join(', '):''),saved:[]};render()}
   else{const days=r.days.map(d=>({id:'d'+rid(),name:d.name,ex:d.ex.map(x=>{const row=exM&&exM[x.n.trim()];return {id:'x'+rid(),n:x.n,g:row?row[1]:'אחר',sets:x.sets,rep:x.rep,rest:x.rest,tip:row?(row[5]||''):'',video:''}})}));
-   const c={id:'g'+rid(),name:'טיוטת AI · '+nm+' · '+u.name,days};S.progs.push(c);save();aiSh=null;aiDone=r.summary;editProg(c.id)}
+   aiSh.busy=false;aiSh.res={kind:'prog',nm,c:{days},summary:r.summary,note:'',saved:[]};render()}
  }catch(e){if(aiSh){aiSh.busy=false;aiSh.err=e.message||'שגיאה';render()}}}
 let aiDone='';
 const aiBanner=()=>aiDone?`<div class="card" style="border:1px solid var(--acc)"><div class="row sp"><b>✨ טיוטת AI מוכנה</b><button class="g" style="padding:4px 10px" onclick="aiDone='';render()">✕</button></div><div style="white-space:pre-line;font-size:13.5px;margin-top:6px">${esc(aiDone)}</div><div class="mut" style="font-size:12.5px;margin-top:6px">זו טיוטה בתבניות. ערוך, ואז הקצה למתאמן דרך "השתמש" או בחירת התבנית.</div></div>`:'';
