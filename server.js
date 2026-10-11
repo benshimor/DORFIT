@@ -26,11 +26,12 @@ const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
 const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia', 'rtime', 'remOff', 'hs', 'rf']; // trainee-owned
-const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone', 'remT', 'sub'];                                                          // coach-owned
+const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone', 'remT', 'sub', 'intk'];                                                          // coach-owned
 const checks = {
   water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
   pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20), sub: x => obj(x) && JSON.stringify(x).length < 2000, remT: x => str(x, 5) && (x === '' || /^\d\d:\d\d$/.test(x)),
   rf: x => Array.isArray(x) && x.length <= 60,
+  intk: x => x === null || (obj(x) && Object.keys(x).length <= 24 && Object.values(x).every(v => typeof v === 'string' && v.length <= 700)),
   hs: x => x === null || (obj(x) && str(x.d, 12) && num(x.h) && x.h >= 0 && x.h <= 24),
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
@@ -362,7 +363,7 @@ app.post('/api/ai/draft', wrap(async (req, res) => {
   if (!row) fail(404, 'מתאמן לא נמצא');
   const u = J(row.data), t = (v, m) => (typeof v === 'string' ? v.trim().slice(0, m) : ''), n = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
   const w = (u.weights || []).slice(-6).map(x => ({ date: x[0], kg: x[1] }));
-  const ctx = { name: String(u.name || '').split(' ')[0], recentWeights: w, supplements: t(u.supp, 200), cardio: t(u.cardio, 200), coachRequest: t(brief.text, 800), goal: t(brief.goal, 60), level: t(brief.level, 40), equipment: t(brief.equip, 200), restrictions: t(brief.restr, 300) };
+  const ctx = { name: String(u.name || '').split(' ')[0], recentWeights: w, supplements: t(u.supp, 200), cardio: t(u.cardio, 200), coachRequest: t(brief.text, 800), goal: t(brief.goal, 60), level: t(brief.level, 40), equipment: t(brief.equip, 200), restrictions: t(brief.restr, 300), intake: obj(u.intk) ? { age: u.intk.age, heightCm: u.intk.height, weightKg: u.intk.weight, experience: u.intk.exp, foodRestrictions: u.intk.food, usualDay: u.intk.diet } : undefined };
   const SYS = 'אתה עוזר למאמן כושר ישראלי. אתה מכין טיוטה בלבד, והמאמן יבדוק ויערוך הכול לפני שהמתאמן יראה אותה. כתוב בעברית. אל תיתן ייעוץ רפואי, ואל תציע דיאטות קיצוניות (לא פחות מ-1200 קלוריות ביום). אם יש מגבלה רפואית או פציעה, התחשב בה בזהירות והזכר ב-summary שהמאמן צריך לאמת. החזר JSON תקין בלבד, בלי טקסט לפניו או אחריו.';
   if (kind === 'plan') {
     const P = n(brief.p, 0, 600), C = n(brief.c, 0, 1000), F = n(brief.f, 0, 400), mac = P || C || F, cal = n(brief.kcal, 0, 6000) || (mac ? P * 4 + C * 4 + F * 9 : 0), meals = n(brief.meals, 2, 8) || 5;
@@ -379,6 +380,80 @@ app.post('/api/ai/draft', wrap(async (req, res) => {
   if (!days2.length) fail(502, 'ה-AI לא החזיר תוכנית, נסה שוב');
   res.json({ name: t(out.name, 80) || 'תוכנית AI', summary: t(out.summary, 600), days: days2 });
 }));
+
+// ---------- weekly AI review for the coach ----------
+function weekData() {
+  const d = todayTZ(), d7 = (() => { const t = new Date(d + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() - 7); return t.toISOString().slice(0, 10); })(), now = Date.now();
+  const rows = db.prepare("select id,data from users where role='trainee'").all().map(r => ({ id: r.id, u: J(r.data) })).filter(x => x.u.status === 'פעיל' || !x.u.status).slice(0, 30);
+  return rows.map((x, i) => {
+    const u = x.u, plan = u.plan && db.prepare("select data from docs where id=? and type='plan'").get(u.plan), nm = Math.max(1, plan ? (J(plan.data).meals || []).length : 1);
+    const dl = Object.entries(u.daily || {}).filter(([k]) => k >= d7 && obj(u.daily[k])).map(e => e[1]);
+    const lg = (u.log || []).filter(r => r && num(r.date)), wk = lg.filter(r => r.date > now - 7 * 864e5), last = lg.reduce((m, r) => Math.max(m, r.date), 0);
+    const w = (u.weights || []).filter(a => Array.isArray(a)).slice(-8), prog = (u.progs || []).length ? db.prepare("select data from docs where id=? and type='prog'").get(u.progs[0]) : null;
+    const avg = (arr) => arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length * 10) / 10 : null;
+    return { id: x.id, k: 't' + (i + 1), o: {
+      name: String(u.name || '').split(' ')[0], workoutsThisWeek: wk.length, plannedWorkoutDays: prog ? (J(prog.data).days || []).length : null,
+      avgDifficulty1to10: avg(wk.map(r => Number(r.rpe)).filter(n => n > 0)), prsThisWeek: wk.reduce((n, r) => n + ((r.prs || []).length), 0), daysSinceLastWorkout: last ? Math.floor((now - last) / 864e5) : null,
+      daysWithFoodLogged: dl.filter(x => num(x.m) && x.m > 0).length, avgMealsLoggedPctOfPlan: dl.length ? Math.round(dl.reduce((a, b) => a + (num(b.m) ? b.m : 0), 0) / (dl.length * nm) * 100) : null,
+      avgWaterPctOfGoal: dl.length && u.goal ? Math.round(avg(dl.map(x => num(x.w) ? x.w : 0)) / u.goal * 100) : null, avgSteps: avg(dl.map(x => x.s).filter(n => num(n) && n > 0)), avgSleepHours: avg(dl.map(x => x.sh).filter(n => num(n) && n > 0)),
+      weightKg: w.length >= 2 ? { from: w[0][1], to: w[w.length - 1][1] } : null, goalNote: obj(u.intk) ? String(u.intk.goal || '').slice(0, 60) : '', injuries: obj(u.intk) ? String(u.intk.inj || '').slice(0, 120) : ''
+    } };
+  });
+}
+app.get('/api/ai/weekly', wrap((req, res) => { auth(req, 'coach'); const r = db.prepare("select v from kv where k='aiweek'").get(); res.json(r ? J(r.v) : { ts: 0, items: [] }); }));
+app.post('/api/ai/weekly', wrap(async (req, res) => {
+  auth(req, 'coach');
+  const data = weekData();
+  if (!data.length) fail(400, 'אין מתאמנים פעילים');
+  const SYS = 'אתה עוזר למאמן כושר ישראלי. אתה מקבל נתוני שבוע של כל מתאמן ומחזיר סקירה קצרה וענינית בעברית. אל תמציא נתונים שאין, אל תיתן ייעוץ רפואי. אם נתון חסר (null) אל תסיק ממנו. החזר JSON תקין בלבד.';
+  const out = await aiAsk(SYS, 'נתוני השבוע האחרון של המתאמנים:\n' + JSON.stringify(data.map(x => ({ k: x.k, ...x.o }))) + '\n\nלכל מתאמן החזר: st = good (הולך טוב) / watch (שווה תשומת לב) / alert (דורש התערבות). head = שורה אחת קצרה על המצב. notes = עד 2 משפטים: מה בולט ומה כדאי לעשות. wa = הודעת וואטסאפ קצרה מהמאמן למתאמן (עד 3 משפטים, גוף שני, חמה וישירה, מתחילה ב"היי " ושם פרטי, בלי פירוט מספרים יבש; מחמאה אם הולך טוב, עידוד עדין אם לא). סדר את הרשימה כך שמי שדורש תשומת לב ראשון. summary = 2-3 שורות סיכום כללי לכל הקבוצה.\nפורמט: {"summary":"...","items":[{"k":"t1","st":"good","head":"...","notes":"...","wa":"..."}]}');
+  const map = new Map(data.map(x => [x.k, x.id])), t = (v, m) => (typeof v === 'string' ? v.trim().slice(0, m) : '');
+  const items = (Array.isArray(out.items) ? out.items : []).filter(i => obj(i) && map.has(i.k)).slice(0, 30).map(i => ({ uid: map.get(i.k), st: ['good', 'watch', 'alert'].includes(i.st) ? i.st : 'watch', head: t(i.head, 160), notes: t(i.notes, 400), wa: t(i.wa, 500) }));
+  if (!items.length) fail(502, 'ה-AI לא החזיר סקירה, נסה שוב');
+  const rec = { ts: Date.now(), summary: t(out.summary, 500), items };
+  db.prepare("insert into kv(k,v) values('aiweek',?) on conflict(k) do update set v=excluded.v").run(JSON.stringify(rec));
+  res.json(rec);
+}));
+
+// ---------- intake form (public link for new leads) ----------
+db.exec("create table if not exists intake(id text primary key, ts integer not null, data text not null, done integer not null default 0)");
+const intakeTok = () => { const r = db.prepare("select v from kv where k='intake_tok'").get(); if (r) return r.v; const v = crypto.randomBytes(12).toString('hex'); db.prepare("insert into kv(k,v) values('intake_tok',?)").run(v); return v; };
+const intakeHits = new Map();
+const IK = { name: 80, phone: 20, age: 3, height: 3, weight: 5, goal: 60, exp: 40, days: 2, equip: 120, inj: 400, food: 300, diet: 500, notes: 600 };
+app.get('/api/intake', wrap((req, res) => { auth(req, 'coach'); res.json({ token: intakeTok(), list: db.prepare('select id,ts,data,done from intake where done=0 order by ts desc limit 100').all().map(r => ({ id: r.id, ts: r.ts, ...J(r.data) })) }); }));
+app.post('/api/intake/reset', wrap((req, res) => { auth(req, 'coach'); db.prepare("delete from kv where k='intake_tok'").run(); res.json({ token: intakeTok() }); }));
+app.post('/api/intake/:id/done', wrap((req, res) => { auth(req, 'coach'); db.prepare('update intake set done=1 where id=?').run(String(req.params.id)); res.json({ ok: true }); }));
+app.post('/api/intake/:token', wrap((req, res) => {
+  if (String(req.params.token) !== intakeTok()) fail(404, 'הקישור לא תקין');
+  const ip = req.ip || '', now = Date.now(), hits = (intakeHits.get(ip) || []).filter(x => now - x < 3600e3);
+  if (hits.length >= 5) fail(429, 'נשלחו יותר מדי טפסים, נסה שוב מאוחר יותר');
+  const b = obj(req.body) ? req.body : {};
+  if (b.website) return res.json({ ok: true });
+  const o = {};
+  for (const k of Object.keys(IK)) { const v = typeof b[k] === 'string' ? b[k].replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, IK[k]) : ''; if (v) o[k] = v; }
+  if (!o.name || !o.phone || !/^[\d+\-\s()]{7,20}$/.test(o.phone)) fail(400, 'נא למלא שם ומספר טלפון תקין');
+  hits.push(now); intakeHits.set(ip, hits); if (intakeHits.size > 500) intakeHits.clear();
+  db.prepare('insert into intake(id,ts,data) values(?,?,?)').run('i' + rid(8), now, JSON.stringify(o));
+  res.json({ ok: true });
+}));
+const INTAKE_HTML = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>שאלון היכרות · DOR FIT</title><style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#0e1116;color:#f2f4f8;line-height:1.5}.w{max-width:520px;margin:0 auto;padding:22px 18px 40px}h1{font-size:26px;margin:6px 0 4px}p{color:#aab3c2;margin:0 0 18px}label{display:block;font-size:13.5px;color:#aab3c2;margin:14px 0 5px}input,select,textarea{width:100%;padding:13px;border-radius:12px;border:1px solid #2b3340;background:#171c24;color:#f2f4f8;font:inherit;font-size:16px}textarea{min-height:76px;resize:vertical}.r{display:flex;gap:10px}.r>div{flex:1}button{margin-top:22px;width:100%;padding:15px;border:0;border-radius:14px;font:inherit;font-size:17px;font-weight:800;color:#fff;background:linear-gradient(120deg,#7c5cff,#2f80ff)}button:disabled{opacity:.6}.e{color:#ff6b6b;margin-top:12px}.ok{text-align:center;padding:60px 10px}.ok b{font-size:24px;display:block;margin-bottom:8px}.hp{position:absolute;top:0;right:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}</style></head><body><div class="w" id="f"><h1>נעים להכיר 👋</h1><p>כמה שאלות קצרות כדי שאוכל לבנות לך תוכנית שמתאימה בדיוק לך. לוקח שתי דקות.</p>
+<label>שם מלא *</label><input id="name" autocomplete="name"><label>טלפון (וואטסאפ) *</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel">
+<div class="r"><div><label>גיל</label><input id="age" inputmode="numeric"></div><div><label>גובה (ס״מ)</label><input id="height" inputmode="numeric"></div><div><label>משקל (ק״ג)</label><input id="weight" inputmode="decimal"></div></div>
+<label>המטרה העיקרית</label><select id="goal"><option>ירידה במשקל / חיטוב</option><option>עלייה במסה</option><option>שיפור כושר וכוח</option><option>שמירה על כושר</option><option>אחר</option></select>
+<div class="r"><div><label>ניסיון באימונים</label><select id="exp"><option>מתחיל</option><option>בינוני</option><option>מתקדם</option></select></div><div><label>אימונים בשבוע</label><select id="days"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select></div></div>
+<label>איפה מתאמנים / איזה ציוד יש</label><input id="equip" placeholder="חדר כושר, בית עם משקולות...">
+<label>פציעות או בעיות רפואיות</label><textarea id="inj" placeholder="אם אין, אפשר להשאיר ריק"></textarea>
+<label>אלרגיות, מה לא אוכלים</label><input id="food">
+<label>איך נראה יום אוכל רגיל שלך?</label><textarea id="diet"></textarea>
+<label>עוד משהו שחשוב לי לדעת</label><textarea id="notes"></textarea>
+<input class="hp" id="website" tabindex="-1" autocomplete="off"><div class="e" id="e"></div><button id="b">שליחה</button></div>
+<script>
+var T=location.pathname.split('/').pop(),F=['name','phone','age','height','weight','goal','exp','days','equip','inj','food','diet','notes','website'];
+document.getElementById('b').onclick=function(){var b=this,o={};F.forEach(function(k){o[k]=document.getElementById(k).value});var e=document.getElementById('e');e.textContent='';if(!o.name.trim()||!o.phone.trim()){e.textContent='נא למלא שם וטלפון';return}b.disabled=true;
+fetch('/api/intake/'+T,{method:'POST',headers:{'Content-Type':'application/json','X-App':'1'},body:JSON.stringify(o)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'שגיאה');return j})}).then(function(){document.getElementById('f').innerHTML='<div class="ok"><b>תודה! 🙏</b>קיבלתי את הפרטים ואחזור אליך בקרוב.</div>'}).catch(function(x){b.disabled=false;e.textContent=x.message||'שגיאה, נסה שוב'})};
+</script></body></html>`;
+app.get('/intake/:token', (req, res) => { if (String(req.params.token) !== intakeTok()) return res.status(404).type('text').send('הקישור לא תקין'); res.set('Cache-Control', 'no-store').type('html').send(INTAKE_HTML); });
 
 // ---------- web push (rest-timer notifications) ----------
 let webpush = null; try { webpush = require('web-push'); } catch (e) { console.log('[push] web-push not installed, notifications disabled'); }
@@ -535,7 +610,16 @@ async function runReminders(now) {
     const data = J(r.data);
     if ((data.status && data.status !== 'פעיל') || data.remOff) continue;
     const okT = v => /^\d\d:\d\d$/.test(v || ''); const t = okT(data.rtime) ? data.rtime : okT(data.remT) ? data.remT : '10:00';
+    const wd = new Date(d + 'T12:00:00Z').getUTCDay();
+    if (wd !== 6 && hm >= '19:00' && data.plan && !logged(r.id, 'nut', d)) {
+      const any = data.day === d && (data.ms || []).some(m => m && (m.v || m.pv || (m.x && m.x.length)));
+      if (!any) { markLogged(r.id, 'nut', d); await sendPush(r.id, { title: 'DOR FIT', body: 'עוד לא תיעדת אוכל היום. שתי דקות ושומרים על הרצף 💪', tag: 'nut', url: '/' }); }
+    }
     if (hm < t) continue;
+    if (wd !== 6 && (data.progs || []).length && !logged(r.id, 'wk', d) && !logged(r.id, 'wk', isoAdd(d, -1)) && !logged(r.id, 'wk', isoAdd(d, -2))) {
+      const lastMs = (data.log || []).reduce((m, x) => Math.max(m, num(x && x.date) ? x.date : 0), 0), cr = data.created ? new Date(data.created).getTime() : 0, ref = lastMs || cr;
+      if (ref) { const gap = isoDiff(new Date(ref).toLocaleDateString('sv-SE', { timeZone: TZ }), d); if (gap >= 4 && gap <= 60) { markLogged(r.id, 'wk', d); await sendPush(r.id, { title: 'מתי חוזרים לאימון?', body: 'עברו ' + gap + ' ימים מהאימון האחרון. אימון קצר גם נחשב, מחכים לך.', tag: 'wk', url: '/' }); } }
+    }
     if (!(data.checkin && data.checkin.done && data.day === d) && !logged(r.id, 'ci', d)) {
       markLogged(r.id, 'ci', d);
       await sendPush(r.id, { title: 'צ׳ק-אין יומי', body: 'כמה שעות ישנת ועד כמה היית רעב אתמול? לוקח דקה.', tag: 'ci', url: '/' });
