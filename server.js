@@ -370,6 +370,12 @@ app.get('/api/photos/:id', wrap((req, res) => {
   res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, no-cache', 'X-Content-Type-Options': 'nosniff' });
   res.send(r.data);
 }));
+app.get('/api/backup/db', wrap(async (req, res) => {
+  auth(req, 'coach');
+  const tmp = path.join(require('os').tmpdir(), 'dorfit-dl-' + Date.now() + '.db');
+  await db.backup(tmp);
+  res.download(tmp, 'dorfit-' + new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jerusalem' }) + '.db', () => { try { fs.unlinkSync(tmp); } catch (e) {} });
+}));
 app.get('/api/export', wrap((req, res) => {
   auth(req, 'coach');
   res.set('Content-Disposition', 'attachment; filename="dorfit-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
