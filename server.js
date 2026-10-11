@@ -329,9 +329,20 @@ async function aiAsk(system, user) {
   db.prepare("insert into kv(k,v) values(?,?) on conflict(k) do update set v=excluded.v").run(k, String(used + 1));
   let r, j, txt;
   if (GEM) {
-    r = await fetch((process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com') + '/v1beta/models/' + encodeURIComponent(AI_MODEL) + ':generateContent', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8000, temperature: 0.6 } }) });
-    j = await r.json().catch(() => ({}));
-    if (!r.ok) { console.log('[ai] error', r.status, JSON.stringify(j).slice(0, 300)); fail(r.status === 429 ? 429 : 502, r.status === 429 ? 'חריגה ממגבלת ה-AI החינמית, נסה שוב בעוד דקה' : 'שגיאה משירות ה-AI (' + r.status + ')'); }
+    const models = [AI_MODEL, process.env.AI_FALLBACK_MODEL || 'gemini-3.5-flash-lite'].filter((m, i, a) => a.indexOf(m) === i);
+    const bodyG = JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8000, temperature: 0.6 } });
+    for (let i = 0; i < 4; i++) {
+      const m = models[Math.min(i >> 1, models.length - 1)];
+      try {
+        r = await fetch((process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com') + '/v1beta/models/' + encodeURIComponent(m) + ':generateContent', { method: 'POST', signal: AbortSignal.timeout(90000), headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body: bodyG });
+        j = await r.json().catch(() => ({}));
+      } catch (e) { r = { ok: false, status: 0 }; j = { error: { message: String(e.message) } }; }
+      if (r.ok) break;
+      console.log('[ai] gemini', m, r.status, JSON.stringify(j).slice(0, 300));
+      if (![0, 429, 500, 503, 504].includes(r.status) && !(r.status === 404 && i < 2)) break;
+      await new Promise(f => setTimeout(f, 1500 * (i + 1)));
+    }
+    if (!r.ok) { db.prepare("update kv set v=? where k=?").run(String(used), k); const em = ((j.error || {}).message || '').slice(0, 120); fail(r.status === 429 ? 429 : 502, r.status === 429 ? 'חריגה ממגבלת ה-AI החינמית, נסה שוב בעוד דקה' : r.status === 503 || r.status === 0 ? 'שירות ה-AI עמוס כרגע, נסה שוב בעוד דקה' : 'שגיאה משירות ה-AI (' + r.status + ')' + (em ? ': ' + em : '')); }
     txt = (((j.candidates || [])[0] || {}).content || {}).parts ? ((j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('') : '';
   } else {
     r = await fetch((process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, system, messages: [{ role: 'user', content: user }] }) });
