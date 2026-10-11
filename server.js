@@ -137,11 +137,70 @@ function seedMsgs() {
   MSG_DEF.forEach((m, i) => ins.run('m' + (i + 1), 'msg', null, JSON.stringify({ id: 'm' + (i + 1), n: m[0], t: m[1] })));
   db.prepare("insert into kv(k,v) values('msgs_seeded','1')").run();
 }
+
+// ---------- recipes & tips (built-in content library) ----------
+const RCP_DEF = [
+  { n: "גלידת שוקולד-בננה חלבון", cat: "נינג'ה קרימי", em: "🍫", d: "גלידה קרמית עם 26 גרם חלבון, בלי רגשות אשם.", tm: 5, sv: 1, k: 250, p: 26, c: 28, f: 3,
+    ing: ["200 מ״ל חלב שקדים לא ממותק", "1 סקופ (30 גרם) אבקת חלבון שוקולד או וניל", "1 בננה קפואה קטנה (כ-100 גרם)", "1 כף קקאו (5 גרם)", "ממתיק לפי הטעם"],
+    st: ["מערבבים את כל המרכיבים במיכל של הנינג'ה קרימי.", "מקפיאים 24 שעות, בעמידה ישרה ובלי מכסה.", "מפעילים תוכנית Lite Ice Cream.", "אם התוצאה פירורית, מוסיפים כף חלב ומפעילים Re-spin."], tip: "הבננה הקפואה נותנת קרמיות בלי להוסיף שומן." },
+  { n: "גלידת וניל-תות עם יוגורט חלבון", cat: "נינג'ה קרימי", em: "🍓", d: "פירותית ורעננה, 28 גרם חלבון ב-190 קלוריות.", tm: 5, sv: 1, k: 190, p: 28, c: 14, f: 2,
+    ing: ["150 גרם יוגורט חלבון 0-2%", "100 מ״ל חלב שקדים", "100 גרם תותים קפואים", "15 גרם אבקת חלבון וניל", "ממתיק לפי הטעם"],
+    st: ["מערבבים הכול במיכל ומקפיאים 24 שעות.", "מפעילים Lite Ice Cream.", "מוסיפים כף חלב ו-Re-spin אם צריך."], tip: "אפשר להחליף תותים בפירות יער קפואים." },
+  { n: "גלידת קפה וחלבון", cat: "נינג'ה קרימי", em: "☕", d: "בשביל מי שאוהב קפה, 31 גרם חלבון.", tm: 5, sv: 1, k: 200, p: 31, c: 12, f: 4,
+    ing: ["200 מ״ל חלב 1%", "30 גרם אבקת חלבון וניל", "שוט אספרסו (30 מ״ל) מקורר", "ממתיק לפי הטעם"],
+    st: ["מערבבים את הכול ומקפיאים 24 שעות.", "מפעילים Lite Ice Cream.", "אם צריך, מוסיפים כף חלב ו-Re-spin."], tip: "אספרסו מקורר, כדי שלא יפגע בקפיאה." },
+  { n: "מוס שוקולד חלבון", cat: "קינוחים", em: "🍮", d: "קינוח ערב מהיר, 33 גרם חלבון בקערה אחת.", tm: 5, sv: 1, k: 200, p: 33, c: 10, f: 2,
+    ing: ["200 גרם יוגורט יווני 0%", "15 גרם אבקת חלבון שוקולד", "1 כף קקאו (8 גרם)", "ממתיק לפי הטעם"],
+    st: ["מערבבים הכול בקערה עד שמתקבלת קרם חלק.", "מקררים 20 דקות לפחות.", "מגישים עם פירות יער או שבבי שוקולד מריר."], tip: "ככל שמקררים יותר זמן, המרקם נעשה מוס." },
+  { n: "עוגת כוס חלבון במיקרוגל", cat: "קינוחים", em: "🧁", d: "עוגה חמה ב-2 דקות, 31 גרם חלבון.", tm: 3, sv: 1, k: 215, p: 31, c: 8, f: 7,
+    ing: ["1 ביצה", "30 גרם אבקת חלבון", "1 כף קקאו (8 גרם)", "2 כפות חלב (30 מ״ל)", "חצי כפית אבקת אפייה", "ממתיק לפי הטעם"],
+    st: ["מערבבים הכול בכוס שמתאימה למיקרוגל.", "מחממים 60 עד 90 שניות, לפי עוצמת המיקרוגל.", "משאירים דקה להתייצב."], tip: "אל תחממו יותר מדי, כדי שהעוגה לא תתייבש." },
+  { n: "פנקייק שיבולת שועל", cat: "ארוחות בוקר", em: "🥞", d: "ארוחת בוקר משביעה עם 15 גרם חלבון.", tm: 10, sv: 1, k: 275, p: 15, c: 40, f: 7,
+    ing: ["40 גרם שיבולת שועל טחונה", "1 ביצה + 1 חלבון", "חצי בננה (50 גרם)", "קורט קינמון"],
+    st: ["טוחנים את השיבולת ומערבבים עם יתר המרכיבים.", "מחממים מחבת מצופה ומטגנים 2 דקות מכל צד.", "מגישים עם פירות או יוגורט."], tip: "מחבת מצופה מאפשרת להשתמש בכמעט בלי שמן." },
+  { n: "שייק חלבון חיטוב", cat: "חטיפים ושייקים", em: "🥤", d: "שייק קליל, 25 גרם חלבון ב-160 קלוריות.", tm: 2, sv: 1, k: 160, p: 25, c: 4, f: 3,
+    ing: ["300 מ״ל חלב שקדים לא ממותק", "30 גרם אבקת חלבון", "קוביות קרח", "ממתיק לפי הטעם"],
+    st: ["מכניסים הכול לבלנדר.", "טוחנים עד שהשייק חלק ומגישים מיד."], tip: "עוד קרח ייתן שייק סמיך יותר." },
+  { n: "סלט טונה ואבוקדו", cat: "ארוחות עיקריות", em: "🥗", d: "ארוחה מהירה עם 30 גרם חלבון.", tm: 7, sv: 1, k: 280, p: 30, c: 12, f: 12,
+    ing: ["1 קופסת טונה במים (120 גרם מסונן)", "חצי אבוקדו (70 גרם)", "1 מלפפון", "1 עגבנייה", "מיץ לימון, מלח ופלפל"],
+    st: ["חותכים את הירקות והאבוקדו לקוביות.", "מוסיפים את הטונה המסוננת.", "מתבלים בלימון, מלח ופלפל ומערבבים."], tip: "טונה במים במקום בשמן חוסכת כ-100 קלוריות." },
+  { n: "איך מצליחים עם הנינג'ה קרימי", cat: "טיפים", em: "💡", d: "ארבעה כללים שעושים את ההבדל.", tm: 0, sv: 0, k: 0, p: 0, c: 0, f: 0, ing: [], st: [],
+    tip: "1. מקפיאים 24 שעות לפחות, בעמידה ישרה.\n2. לא עוברים את קו ה-MAX במיכל.\n3. אם התוצאה פירורית, מוסיפים כף נוזל ומפעילים Re-spin.\n4. חלבון בכל מתכון: אבקת חלבון או יוגורט חלבון כבסיס." },
+  { n: "קינוח חיטוב חכם", cat: "טיפים", em: "🍨", d: "איך נהנים מקינוח בלי לפרק את התפריט.", tm: 0, sv: 0, k: 0, p: 0, c: 0, f: 0, ing: [], st: [],
+    tip: "1. בונים את הקינוח סביב חלבון, כדי להישאר שבע.\n2. שותים מים לפני, ואוכלים לאט.\n3. מכניסים את הקינוח לתוך הקלוריות של היום, ולא מעל.\n4. מעדיפים להכין בבית, כדי לדעת מה יש בפנים." }
+];
+function seedRcps() {
+  if (db.prepare("select 1 from kv where k='rcp_seeded'").get()) return;
+  const ins = db.prepare('insert or ignore into docs(id,type,owner,data) values(?,?,?,?)');
+  RCP_DEF.forEach((r, i) => { const id = 'r' + (i + 1); ins.run(id, 'rcp', null, JSON.stringify({ id, ...r, pub: 1, img: 0, ts: 0 })); });
+  db.prepare("insert into kv(k,v) values('rcp_seeded','1')").run();
+}
+db.exec("create table if not exists rimg(id text primary key, ts integer not null, data blob not null)");
+app.post('/api/rcp/:id/img', wrap((req, res) => {
+  auth(req, 'coach');
+  const id = String(req.params.id), d = (req.body || {}).data;
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) fail(400, 'מזהה לא תקין');
+  if (typeof d !== 'string' || !d.startsWith('data:image/jpeg;base64,') || d.length > 900000) fail(400, 'תמונה לא תקינה');
+  const buf = Buffer.from(d.slice(23), 'base64');
+  if (buf.length < 200 || buf[0] !== 0xFF || buf[1] !== 0xD8) fail(400, 'תמונה לא תקינה');
+  const ts = Date.now();
+  db.prepare('insert or replace into rimg(id,ts,data) values(?,?,?)').run(id, ts, buf);
+  res.json({ ts });
+}));
+app.delete('/api/rcp/:id/img', wrap((req, res) => { auth(req, 'coach'); db.prepare('delete from rimg where id=?').run(String(req.params.id)); res.json({ ok: true }); }));
+app.get('/api/rcp/:id/img', wrap((req, res) => {
+  auth(req);
+  const id = String(req.params.id), r = db.prepare('select data from rimg where id=?').get(id);
+  if (!r) fail(404, 'לא נמצא');
+  if (req.user.role !== 'coach') { const d = db.prepare("select data from docs where id=? and type='rcp'").get(id); if (!d || !J(d.data).pub) fail(404, 'לא נמצא'); }
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400', 'X-Content-Type-Options': 'nosniff' });
+  res.send(r.data);
+}));
 app.get('/api/state', wrap((req, res) => {
   auth(req);
-  if (req.user.role === 'coach') return res.json({ me: req.user.id, users: db.prepare('select * from users').all().map(outUser), progs: docs('prog'), plans: docs('plan'), exs: docs('ex'), foods: docs('food'), msgs: (seedMsgs(), docs('msg')) });
+  if (req.user.role === 'coach') return res.json({ me: req.user.id, users: db.prepare('select * from users').all().map(outUser), progs: docs('prog'), plans: docs('plan'), exs: docs('ex'), foods: docs('food'), msgs: (seedMsgs(), docs('msg')), rcps: (seedRcps(), docs('rcp')) });
   const mine = db.prepare('select * from docs where owner=?').all(req.user.id).map(r => ({ type: r.type, d: J(r.data) }));
-  res.json({ me: req.user.id, users: [(({ sub, pays, ...o }) => o)(outUser(req.user))], progs: mine.filter(x => x.type === 'prog').map(x => x.d), plans: mine.filter(x => x.type === 'plan').map(x => x.d), exs: docs('ex'), foods: docs('food') });
+  res.json({ me: req.user.id, users: [(({ sub, pays, ...o }) => o)(outUser(req.user))], progs: mine.filter(x => x.type === 'prog').map(x => x.d), plans: mine.filter(x => x.type === 'plan').map(x => x.d), exs: docs('ex'), foods: docs('food'), rcps: (seedRcps(), docs('rcp')).filter(d => d.pub) });
 }));
 
 app.put('/api/me', wrap((req, res) => {
@@ -251,7 +310,7 @@ app.delete('/api/users/:id', wrap((req, res) => {
 }));
 app.put('/api/library', wrap((req, res) => {
   auth(req, 'coach');
-  const { progs, plans, exs, foods, msgs } = req.body || {};
+  const { progs, plans, exs, foods, msgs, rcps } = req.body || {};
   const valid = (a, key) => Array.isArray(a) && a.length < 1000 && a.every(d => obj(d) && str(d.id, 40) && str(d.name, 120) && Array.isArray(d[key]));
   if (!valid(progs, 'days') || !valid(plans, 'meals')) fail(400, 'נתונים לא תקינים');
   let cleanEx = null;
@@ -266,6 +325,12 @@ app.put('/api/library', wrap((req, res) => {
     const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
     cleanMs = msgs.map(d => ({ id: d.id, n: t(d.n, 40), t: t(d.t, 600) }));
   }
+  let cleanRc = null;
+  if (rcps !== undefined) {
+    if (!Array.isArray(rcps) || rcps.length > 300 || !rcps.every(d => obj(d) && /^[A-Za-z0-9_-]{1,40}$/.test(String(d.id || '')) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
+    const t = (v, m) => (typeof v === 'string' ? v.trim().slice(0, m) : ''), m = (x, hi) => Math.max(0, Math.min(hi, Math.round((Number(x) || 0) * 10) / 10)), la = (a, n, l) => (Array.isArray(a) ? a : []).map(x => t(x, l)).filter(Boolean).slice(0, n);
+    cleanRc = rcps.map(d => ({ id: d.id, n: t(d.n, 120), cat: t(d.cat, 30), em: t(d.em, 8), d: t(d.d, 200), tm: m(d.tm, 600), sv: m(d.sv, 50), k: m(d.k, 5000), p: m(d.p, 500), c: m(d.c, 800), f: m(d.f, 500), ing: la(d.ing, 40, 140), st: la(d.st, 30, 500), tip: t(d.tip, 1200), pub: d.pub ? 1 : 0, img: Number(d.img) || 0, ts: Number(d.ts) || 0 }));
+  }
   let cleanFd = null;
   if (foods !== undefined) {
     if (!Array.isArray(foods) || foods.length > 2000 || !foods.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
@@ -275,6 +340,7 @@ app.put('/api/library', wrap((req, res) => {
   const ins = db.prepare('insert into docs(id,type,owner,data) values(?,?,?,?)');
   db.transaction(() => {
     if (cleanFd) { db.prepare("delete from docs where type='food'").run(); cleanFd.forEach(d => ins.run(d.id, 'food', null, JSON.stringify(d))); }
+    if (cleanRc) { db.prepare("delete from docs where type='rcp'").run(); cleanRc.forEach(d => ins.run(d.id, 'rcp', null, JSON.stringify(d))); db.prepare('delete from rimg where ts < ? and id not in (select id from docs where type=\'rcp\')').run(Date.now() - 3600e3); }
     if (cleanMs) { db.prepare("delete from docs where type='msg'").run(); cleanMs.forEach(d => ins.run(d.id, 'msg', null, JSON.stringify(d))); }
     if (cleanEx) { db.prepare("delete from docs where type='ex'").run(); cleanEx.forEach(d => ins.run(d.id, 'ex', null, JSON.stringify(d))); }
     db.prepare("delete from docs where type in ('prog','plan')").run();
