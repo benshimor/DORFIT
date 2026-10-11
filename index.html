@@ -1139,24 +1139,27 @@ function adSheetOk(){const h=AD.sh;if(!h||!(num(h.amt)>0))return softToast('הז
 
 /* ===== עוזר AI למאמן: טיוטות תפריט ותוכנית ===== */
 let aiSh=null;
-const aiOpen=uid=>{aiSh={u:uid,kind:'plan',busy:false,err:'',on:null,f:{text:'',goal:'חיטוב',kcal:'',meals:'5',days:'3',level:'בינוני',equip:'חדר כושר מלא',restr:''}};render();api('GET','/api/ai/status').then(r=>{if(aiSh)aiSh.on=!!r.on;render()}).catch(()=>{if(aiSh){aiSh.on=false;render()}})};
+const aiOpen=uid=>{aiSh={u:uid,kind:'plan',busy:false,err:'',on:null,f:{text:'',goal:'חיטוב',kcal:'',meals:'5',p:'',c:'',f:'',days:'3',level:'בינוני',equip:'חדר כושר מלא',restr:''}};render();api('GET','/api/ai/status').then(r=>{if(aiSh)aiSh.on=!!r.on;render()}).catch(()=>{if(aiSh){aiSh.on=false;render()}})};
 const aiSet=(k,v)=>{if(aiSh)aiSh.f[k]=v};
 function aiSheet(){if(!aiSh)return '';const u=U(aiSh.u);if(!u){aiSh=null;return ''}const f=aiSh.f,pl=aiSh.kind==='plan';
  const inp=(k,ph,t)=>`<input ${t?`type="${t}" inputmode="numeric"`:''} placeholder="${ph}" value="${esc(f[k])}" oninput="aiSet('${k}',this.value)">`;
+ const lab=(t,h)=>`<label style="display:block;flex:1"><span class="mut" style="font-size:12px;display:block;margin-bottom:3px">${t}</span>${h}</label>`;
+ const selN=(k,opts)=>`<select onchange="aiSet('${k}',this.value)">${opts.map(o=>`<option ${String(f[k])===String(o)?'selected':''}>${o}</option>`).join('')}</select>`;
  const sel=(k,opts)=>`<select onchange="aiSet('${k}',this.value)">${opts.map(o=>`<option ${f[k]===o?'selected':''}>${o}</option>`).join('')}</select>`;
  return `<div class="sov" onclick="if(!aiSh.busy){aiSh=null;render()}"></div><div class="sheet" style="max-height:88vh;overflow:auto"><div class="grab"></div><div class="row sp" style="margin-bottom:6px"><b style="font-size:18px">✨ עוזר AI · ${esc(u.name.split(' ')[0])}</b><button class="g" style="padding:6px 10px" onclick="if(!aiSh.busy){aiSh=null;render()}">✕</button></div>
  <div class="mut" style="font-size:12.5px;margin-bottom:10px">ה-AI מכין טיוטה בלבד. היא נשמרת בתבניות, ואתה עורך ומאשר לפני שהמתאמן רואה אותה.</div>
- ${aiSh.on===false?`<div class="card" style="border:1px solid var(--warn)"><b>העוזר עוד לא מופעל</b><div class="mut" style="font-size:13px;margin-top:4px">צריך להגדיר ב-Railway את המשתנה <b dir="ltr">ANTHROPIC_API_KEY</b>.</div></div>`:''}
+ ${aiSh.on===false?`<div class="card" style="border:1px solid var(--warn)"><b>העוזר עוד לא מופעל</b><div class="mut" style="font-size:13px;margin-top:4px">צריך להגדיר ב-Railway את המשתנה <b dir="ltr">GEMINI_API_KEY</b>.</div></div>`:''}
  <div class="row" style="gap:6px;margin-bottom:10px"><button class="${pl?'p':'g'}" style="flex:1" onclick="aiSh.kind='plan';render()">תפריט תזונה</button><button class="${pl?'g':'p'}" style="flex:1" onclick="aiSh.kind='prog';render()">תוכנית אימון</button></div>
  <div style="display:grid;gap:8px"><textarea rows="3" placeholder="${pl?'מה לבנות? למשל: ירידה במשקל, אוהב ארוחות גדולות בערב, לא אוכל חלב':'מה לבנות? למשל: מתחיל, דגש על רגליים וישבן, פציעה קלה בכתף'}" oninput="aiSet('text',this.value)">${esc(f.text)}</textarea>
- <div class="row" style="gap:8px"><div style="flex:1">${sel('goal',['חיטוב','מסה','שמירה','כוח'])}</div>${pl?`<div style="flex:1">${inp('kcal','קלוריות ליום','number')}</div><div style="flex:1">${inp('meals','ארוחות','number')}</div>`:`<div style="flex:1">${sel('level',['מתחיל','בינוני','מתקדם'])}</div><div style="flex:1">${inp('days','ימים בשבוע','number')}</div>`}</div>
+ <div class="row" style="gap:8px;align-items:flex-end"><div style="flex:1">${lab('מטרה',sel('goal',['חיטוב','מסה','שמירה','כוח']))}</div>${pl?`<div style="flex:1">${lab('קלוריות ליום',inp('kcal','למשל 2000','number'))}</div><div style="flex:1">${lab('מס׳ ארוחות',inp('meals','5','number'))}</div>`:`<div style="flex:1">${lab('רמה',sel('level',['מתחיל','בינוני','מתקדם']))}</div><div style="flex:1">${lab('אימונים בשבוע',selN('days',[1,2,3,4,5,6]))}</div>`}</div>
+ ${pl?`<div class="mut" style="font-size:12px;margin-top:2px">סה״כ יומי לפי מאקרו (לא חובה, אפשר להשאיר ריק ויחושב לפי הקלוריות):</div><div class="row" style="gap:8px">${lab('חלבון (ג׳)',inp('p','150','number'))}${lab('פחמימה (ג׳)',inp('c','200','number'))}${lab('שומן (ג׳)',inp('f','60','number'))}</div>`:''}
  ${pl?inp('restr','הגבלות או אלרגיות (לא חובה)'):inp('equip','ציוד (חדר כושר מלא / בית עם משקולות...)')+inp('restr','פציעות או הגבלות (לא חובה)')}
  ${aiSh.err?`<div class="err">${esc(aiSh.err)}</div>`:''}
  <button class="p" style="padding:13px" ${aiSh.busy||aiSh.on===false?'disabled':''} onclick="aiGo()">${aiSh.busy?'מכין טיוטה... (עד חצי דקה)':'צור טיוטה'}</button></div></div>`}
 function aiFood(name){const t=String(name).replace(/[,.()]/g,' ').split(/\s+/).filter(Boolean);for(let n=t.length;n>=1;n--){const q=t.slice(0,n).join(' '),m=fdMatch(q,1)[0];if(m){const f=m.f||mohToFood(m.m);if(f)return {f,exact:n===t.length}}}return null}
 async function aiGo(){if(!aiSh||aiSh.busy)return;const u=U(aiSh.u),f=aiSh.f,pl=aiSh.kind==='plan';aiSh.busy=true;aiSh.err='';render();
  try{await mohEnsureP();exEnsure&&await exEnsure();
-  const r=await api('POST','/api/ai/draft',{kind:aiSh.kind,uid:u.id,brief:{text:f.text,goal:f.goal,kcal:f.kcal,meals:f.meals,days:f.days,level:f.level,equip:f.equip,restr:f.restr}});
+  const r=await api('POST','/api/ai/draft',{kind:aiSh.kind,uid:u.id,brief:{text:f.text,goal:f.goal,kcal:f.kcal,meals:f.meals,p:f.p,c:f.c,f:f.f,days:f.days,level:f.level,equip:f.equip,restr:f.restr}});
   const nm=(r.name||'טיוטה').replace(/^טיוטת?\s*AI\s*[·-]\s*/,'');
   if(pl){const miss=[],apx=[];const meals=r.meals.map(m=>({n:m.n,opts:m.opts.map(o=>({d:o.d,items:o.items.map(x=>{const a=aiFood(x.n);if(a){if(!a.exact)apx.push(x.n+' ← '+a.f.n);return itemFrom(a.f,fdG(a.f)?x.g:1,'g')}miss.push(x.n);return {n:x.n,q:x.g+' גרם',k:0,p:0,c:0,f:0}})}))}));
    const c={id:'p'+rid(),name:'טיוטת AI · '+nm+' · '+u.name,meals};S.plans.push(c);save();aiSh=null;aiDone=r.summary+(apx.length?'\n\nהותאמו למאכל קרוב במאגר (כדאי לבדוק): '+apx.join(' · '):'')+(miss.length?'\n\nמאכלים שלא נמצאו במאגר (הערכים שלהם 0, יש להשלים): '+miss.join(', '):'');editPlan(c.id)}
