@@ -87,6 +87,23 @@ const app = express();
 app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '3mb' }));
+const zlib = require('zlib');
+const wantsGzip = req => /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+app.use((req, res, next) => {
+  const j = res.json.bind(res);
+  res.json = o => { const s = JSON.stringify(o); if (s.length > 1400 && wantsGzip(req)) { res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' }); return res.send(zlib.gzipSync(s)); } return j(o); };
+  next();
+});
+const gzCache = new Map();
+function sendText(req, res, p, type) {
+  const st = fs.statSync(p); let c = gzCache.get(p);
+  if (!c || c.m !== st.mtimeMs) { const raw = fs.readFileSync(p); c = { m: st.mtimeMs, raw, gz: zlib.gzipSync(raw, { level: 9 }) }; gzCache.set(p, c); }
+  const gz = wantsGzip(req), tag = '"' + st.size + '-' + Math.round(st.mtimeMs) + (gz ? '-g' : '') + '"';
+  res.set({ 'Content-Type': type, 'ETag': tag, 'Vary': 'Accept-Encoding', 'Cache-Control': 'no-cache' });
+  if (req.headers['if-none-match'] === tag) return res.status(304).end();
+  if (gz) res.set('Content-Encoding', 'gzip');
+  res.send(gz ? c.gz : c.raw);
+}
 app.use((req, res, next) => {
   res.set({
     'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
@@ -677,7 +694,37 @@ app.get('/api/barcode/:code', wrap(async (req, res) => {
 app.get('/api/config', (req, res) => res.json({ apk: !!process.env.APK_URL }));
 app.get('/apk', (req, res) => process.env.APK_URL ? res.redirect(process.env.APK_URL) : res.status(404).type('text/plain').send('APK link is not configured'));
 app.get('/healthz', (req, res) => res.send('ok'));
+// ---------- public landing page (/start) ----------
+const LAND_DEF = { name: 'דור', phone: '', headline: 'בונים לך תוכנית אימון ותזונה שמתאימה בדיוק לך', sub: 'ליווי אישי עם אפליקציה: אימונים, תפריט, מעקב ותמיכה לאורך הדרך.' };
+const landCfg = () => { const r = db.prepare("select v from kv where k='landing'").get(), c = r ? J(r.v) : {}; return { ...LAND_DEF, ...(obj(c) ? c : {}) }; };
+app.get('/api/landing', wrap((req, res) => { auth(req, 'coach'); res.json({ cfg: landCfg(), base: baseUrl(req) }); }));
+app.put('/api/landing', wrap((req, res) => {
+  auth(req, 'coach');
+  const b = obj(req.body) ? req.body : {}, t = (v, m) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, m) : '');
+  const cfg = { name: t(b.name, 40) || LAND_DEF.name, phone: t(b.phone, 20), headline: t(b.headline, 120) || LAND_DEF.headline, sub: t(b.sub, 240) };
+  if (cfg.phone && !/^[\d+\-\s()]{7,20}$/.test(cfg.phone)) fail(400, 'מספר טלפון לא תקין');
+  db.prepare("insert into kv(k,v) values('landing',?) on conflict(k) do update set v=excluded.v").run(JSON.stringify(cfg));
+  res.json({ cfg });
+}));
+const hx = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const waDigits = p => { let d = String(p || '').replace(/\D/g, ''); if (d.startsWith('0')) d = '972' + d.slice(1); return d; };
+app.get('/start', (req, res) => {
+  const c = landCfg(), tok = intakeTok(), wa = c.phone ? 'https://wa.me/' + waDigits(c.phone) + '?text=' + encodeURIComponent('היי ' + c.name + ', ראיתי את הדף שלך ואשמח לשמוע עוד') : '';
+  const feat = [['🏋️', 'תוכנית אימון אישית', 'מותאמת לרמה, לציוד ולמטרה שלך'], ['🍽️', 'תפריט תזונה גמיש', 'כמה אפשרויות לכל ארוחה, והחלפה של כל מאכל'], ['📲', 'אפליקציה אישית', 'אימונים, תזונה, מים ומשקל במקום אחד'], ['💬', 'ליווי והתאמות', 'תזכורות, משוב ושינויים לאורך הדרך'], ['🍨', 'מתכונים וטיפים לחיטוב', 'נינג׳ה קרימי, קינוחים ועוד']];
+  const html = `<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0e1116"><title>${hx(c.name)} · ליווי אימון ותזונה אישי</title><meta name="description" content="${hx(c.headline)}"><meta property="og:title" content="${hx(c.name)} · ליווי אימון ותזונה אישי"><meta property="og:description" content="${hx(c.headline)}"><meta property="og:type" content="website"><link rel="icon" href="/icon.svg"><style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:#0e1116;color:#f2f4f8;line-height:1.55}.w{max-width:560px;margin:0 auto;padding:0 20px 48px}.hero{padding:44px 0 26px;text-align:center}.bd{display:inline-block;padding:6px 14px;border-radius:99px;background:rgba(124,92,255,.18);color:#b9a8ff;font-size:13.5px;font-weight:700}h1{font-size:31px;line-height:1.25;margin:16px 0 10px}.sub{color:#aab3c2;font-size:17px;margin:0 0 24px}.btn{display:block;text-align:center;text-decoration:none;padding:16px;border-radius:16px;font-size:17px;font-weight:800;color:#fff;background:linear-gradient(120deg,#7c5cff,#2f80ff 60%,#19c3a6);box-shadow:0 8px 24px rgba(80,100,255,.35)}.btn.s{margin-top:10px;background:#171c24;border:1px solid #2b3340;box-shadow:none;font-weight:700}h2{font-size:21px;margin:34px 0 14px}.g{display:grid;gap:10px}.f{display:flex;gap:14px;align-items:center;padding:14px 16px;border-radius:18px;background:#171c24;border:1px solid #232a35}.f i{font-style:normal;font-size:28px;flex:none}.f b{display:block;font-size:16.5px}.f span{color:#aab3c2;font-size:14.5px}.st{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}.st em{flex:none;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#7c5cff,#2f80ff);display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:800}.st b{display:block}.st span{color:#aab3c2;font-size:14.5px}.ft{text-align:center;color:#6c7586;font-size:13px;margin-top:34px}.cta{margin-top:28px;padding:22px 18px;border-radius:22px;background:linear-gradient(135deg,rgba(124,92,255,.22),rgba(47,128,255,.16));border:1px solid #2b3340;text-align:center}.cta p{margin:0 0 14px;font-size:18px;font-weight:700}</style></head><body><div class="w"><div class="hero"><span class="bd">ליווי אימון ותזונה אישי</span><h1>${hx(c.headline)}</h1>${c.sub ? `<p class="sub">${hx(c.sub)}</p>` : ''}<a class="btn" href="/intake/${tok}">מלאו שאלון היכרות קצר</a>${wa ? `<a class="btn s" href="${wa}">דברו איתי בוואטסאפ</a>` : ''}</div>
+<h2>מה מקבלים</h2><div class="g">${feat.map(f => `<div class="f"><i>${f[0]}</i><div><b>${f[1]}</b><span>${f[2]}</span></div></div>`).join('')}</div>
+<h2>איך זה עובד</h2><div class="st"><em>1</em><div><b>ממלאים שאלון קצר</b><span>מטרה, ניסיון, ציוד ופציעות. לוקח שתי דקות.</span></div></div><div class="st"><em>2</em><div><b>אני חוזר אליכם</b><span>מדברים ובונים יחד תוכנית אישית.</span></div></div><div class="st"><em>3</em><div><b>מתחילים ומתקדמים</b><span>מקבלים גישה לאפליקציה ומתאמנים לפי התוכנית.</span></div></div>
+<div class="cta"><p>מוכנים להתחיל?</p><a class="btn" href="/intake/${tok}">למילוי השאלון</a></div><div class="ft">DOR FIT · ${hx(c.name)}</div></div></body></html>`;
+  res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache', 'Vary': 'Accept-Encoding' });
+  if (wantsGzip(req)) { res.set('Content-Encoding', 'gzip'); return res.send(zlib.gzipSync(html)); }
+  res.send(html);
+});
+
 app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
+
+
+
 
 const WEB = ['index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'sw.js', 'zxing.min.js'];
 const webFile = f => [path.join(__dirname, 'public', f), path.join(__dirname, f)].find(p => fs.existsSync(p));
@@ -685,7 +732,8 @@ app.get(['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/i
   const f = req.path === '/' ? 'index.html' : req.path.slice(1);
   const p = WEB.includes(f) && webFile(f);
   if (!p) return res.status(404).send('missing ' + f);
-  if (/index\.html$|sw\.js$/.test(f)) res.set('Cache-Control', 'no-cache');
+  if (/\.(html|js)$/.test(f)) return sendText(req, res, p, /\.html$/.test(f) ? 'text/html; charset=utf-8' : 'text/javascript; charset=utf-8');
+  res.set('Cache-Control', 'public, max-age=86400');
   res.sendFile(p);
 });
 app.use((req, res) => res.sendFile(webFile('index.html')));
