@@ -220,6 +220,8 @@ button,.chk,.li,.cib,.opt,.srow{transition:transform .14s ease,background-color 
 button:active,.chk:active,.li:active,.cib:active,.opt:active{transform:scale(.96)}
 .chk.on{animation:pop .3s cubic-bezier(.34,1.56,.64,1)}
 @keyframes pop{0%{transform:scale(.7)}100%{transform:scale(1)}}
+@keyframes rfill{from{stroke-dashoffset:182.2}}@keyframes nfill{from{stroke-dasharray:0 999}}
+#app.rin .ring circle[stroke-dasharray]{animation:rfill .9s .12s cubic-bezier(.22,1,.36,1) both}#app.rin .nh circle[stroke-dasharray]{animation:nfill .9s .12s cubic-bezier(.22,1,.36,1) both}
 @keyframes vin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 #app.vin>*{animation:vin .3s cubic-bezier(.22,1,.36,1) both}
 @keyframes sup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
@@ -531,11 +533,15 @@ function sess(u){const a=u.act,p=progOf(a.pid),d0=p&&p.days.find(x=>x.id===a.did
  return `<div class="head" style="padding-bottom:14px"><div class="row sp"><div><div class="t1">${d.name}</div><div class="mut">${p.name} · סטים ${sp(u,d)} · נפח ${dayVol(u,d.id).toLocaleString()} ק״ג</div></div><div style="text-align:end"><b id="el" style="font-size:22px;font-variant-numeric:tabular-nums">${elapsed(a)}</b><div class="mut">זמן אימון</div></div></div></div>
  ${d.note?`<div class="cnote" role="note"><div class="cnh"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 00-6 6c0 3-1.5 4-2 5h16c-.5-1-2-2-2-5a6 6 0 00-6-6zM10 18a2 2 0 004 0"/></svg>הערת המאמן לאימון</div><div class="cnb">${esc(d.note)}</div></div>`:''}${html}<div style="text-align:center"><button class="x" onclick="cancelAct()">ביטול האימון</button></div>
  <div class="logbar"><button class="p" onclick="fin=true;render()">סיים אימון</button></div>`}
+function cmpCard(u,p,d,mins){const nm=p.name+' · '+d.name,v=dayVol(u,d.id),L=u.log||[],pv=L.filter(r=>r.did?r.did===d.id:r.name===nm).slice(-1)[0],wk=L.filter(r=>Date.now()-r.date<7*864e5).length+1;
+ let m='';if(pv&&pv.vol>0&&v>0){const dl=Math.round((v-pv.vol)/pv.vol*100);m=dl>0?`📈 נפח גבוה ב-${dl}% מהאימון הקודם`:dl<0?`נפח נמוך ב-${-dl}% מהאימון הקודם · זה בסדר, לא כל יום שיא`:`נפח זהה לאימון הקודם · עקביות 👌`}
+ else m=pv?'':'🌱 זה האימון הראשון מסוג זה. זו נקודת ההתחלה שלך';
+ return `<div class="card" id="cmp"><b>${wk===1?'אימון ראשון השבוע 💪':'אימון מס׳ '+wk+' ב-7 הימים האחרונים 🔥'}</b>${m?`<div class="mut" style="margin-top:4px">${m}</div>`:''}</div>`}
 function summary(u,p,d){const a=u.act,c=u.cur[d.id]||{};let sets=0;d.ex.forEach(e=>{if(c[e.id])sets+=c[e.id].sets.filter(x=>x.d&&!x.wu).length});
  const mins=Math.max(1,Math.round((Date.now()-a.t0)/60000));
  return `<div style="margin:6px 0 16px"><h1 class="h1">סיכום אימון</h1><span class="mut">${p.name} · ${d.name}</span></div>
  <div class="stats"><div><b>${dayVol(u,d.id).toLocaleString()}</b><span>נפח (ק״ג)</span></div><div><b>${mins}</b><span>דקות</span></div><div><b>${sets}</b><span>סטים שבוצעו</span></div></div>
- ${prList(u,d)}<div class="card"><h2>עד כמה האימון היה קשה?</h2><div class="rpf">${RPF.map((f,i)=>`<button class="${a.rpe===(i+1)*2?'on':''}" onclick="setRpe(${(i+1)*2})"><span style="font-size:30px;line-height:1.1">${f[0]}</span><small>${f[1]}</small></button>`).join('')}</div></div>
+ ${cmpCard(u,p,d,mins)} ${prList(u,d)}<div class="card"><h2>עד כמה האימון היה קשה?</h2><div class="rpf">${RPF.map((f,i)=>`<button class="${a.rpe===(i+1)*2?'on':''}" onclick="setRpe(${(i+1)*2})"><span style="font-size:30px;line-height:1.1">${f[0]}</span><small>${f[1]}</small></button>`).join('')}</div></div>
  <div class="card"><h2>הערות למאמן</h2><textarea id="fn" rows="3" placeholder="איך הרגשת? כאבים, קושי, שינויים בתוכנית...">${a.note||''}</textarea></div>
  <div class="card"><h2>מה בוצע</h2>${d.ex.map(e=>{const l=c[e.id],n=l?l.sets.filter(x=>x.d&&!x.wu).length:0;return `<div class="row sp" style="padding:6px 0"><span>${e.n}</span><span class="mut">${n}/${l?l.sets.filter(x=>!x.wu).length:e.sets} סטים</span></div>`}).join('')}</div>
  <div style="text-align:center"><button class="g" onclick="fin=false;render()">← חזרה לאימון</button></div>
@@ -680,6 +686,7 @@ function plOne(pi){const p=S.plans[pi];migPlan(p);return `<div class="card">${in
 function coachDetail(u){const ix=S.users.indexOf(u),al=alerts(u),n=planOf(u).meals.length,L=u.last,c=u.checkin;
  const head=`<div class="row" style="gap:14px;margin-bottom:14px"><span class="av lg">${u.name.trim()[0]}</span><div style="flex:1"><h1 class="h1">${u.name}</h1><span class="mut">${u.block.n} · שבוע ${u.block.w} מתוך ${u.block.of}${u.status!=='פעיל'?' · '+u.status:''}</span></div>${u.phone?`<a class="g" style="padding:10px 14px;border-radius:12px;border:1px solid var(--line);color:var(--ink)" target="_blank" rel="noopener" href="${waLink(u,'היי '+u.name.split(' ')[0]+', תזכורת קטנה למלא את הצ׳ק-אין היומי באפליקציה 💪')}">וואטסאפ</a>`:''}<button class="g" onclick="resetPw('${u.id}')">פרטי כניסה חדשים</button></div>
  <div style="margin:0 0 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="aib" onclick="aiOpen('${u.id}')"><span>✨ עוזר AI</span><small>בונה תפריט או תוכנית</small></button><button class="aib" onclick="tsOpen('${u.id}')"><span>📊 סיכום AI</span><small>איך הולך ל${esc(u.name.split(' ')[0])}</small></button></div>
+ <button class="g" style="width:100%;margin:0 0 10px;padding:11px" onclick="pdfReport('${u.id}')">📄 דוח התקדמות (PDF)</button>
  <div class="nav">${[['sum','סקירה'],['wk','אימונים'],['nu','תזונה'],['ins','עוד']].map(([k,l])=>`<button class="${(k==='ins'?['ins','log','set','sub'].includes(dtab):dtab===k)?'on':''}" onclick="dtab='${k}';render()">${l}</button>`).join('')}</div>${['ins','log','set','sub'].includes(dtab)?`<div class="row wr" style="gap:8px;margin:10px 0">${[['ins','תוספים ואירובי'],['log','היסטוריה'],['set','הגדרות'],['sub','פרטי מנוי']].map(([k,l])=>`<button class="${dtab===k?'p':'g'}" style="padding:8px 14px;font-size:13.5px" onclick="dtab='${k}';render()">${l}</button>`).join('')}</div>`:''}`;
  let b='';
  if(dtab==='sum')b=`${al.length?`<div class="row wr" style="margin-bottom:14px">${al.map(a=>`<span class="pill ${a[0]}">${a[1]}</span>`).join('')}</div>`:''}
@@ -756,7 +763,7 @@ function saveWorkout(){const u=me(),a=u.act,p=progOf(a.pid),d=effDay(u,p.days.fi
   const R=u.pr[e.id]=u.pr[e.id]||{maxW:0,byW:{}};let top=null;
   done.forEach(x=>{const w=num(x.w),r=num(x.r);if(x.pr&&(!top||w>top.w||(w===top.w&&r>top.r)))top={n:e.n,w,r};if(w>R.maxW)R.maxW=w;if(w>0&&r>(R.byW[w]||0))R.byW[w]=r});
   if(top)prs.push(top);items.push({n:e.n,g:e.g||libGroup(e.n)||'',sets:done.map(x=>[x.w,x.r,x.x]),note:l.note})});
- const rec={name:p.name+' · '+d.name,items,prs,vol:dayVol(u,d.id),mins:Math.max(1,Math.round((Date.now()-a.t0)/60000)),rpe:a.rpe,note:a.note||'',date:Date.now()};
+ const rec={name:p.name+' · '+d.name,did:d.id,items,prs,vol:dayVol(u,d.id),mins:Math.max(1,Math.round((Date.now()-a.t0)/60000)),rpe:a.rpe,note:a.note||'',date:Date.now()};
  u.last=rec;(u.log=u.log||[]).push(rec);u.lastDone={pid:p.id,di:p.days.findIndex(x=>x.id===d.id)};delete u.cur[d.id];u.act=null;fin=false;u.lastTrain=0;rest=0;clearInterval(tick);pushCancel();OPN.clear();swo=null;open=null;cd=null;tab='home';save();if(prs.length){celeb='pr';celPR=prs}save();flash(prs.length?'האימון נשמר ✓ · שברת '+prs.length+' שיאים':'האימון נשמר ✓');toTop()}
 function saveWeight(id){const el=document.getElementById(id),v=parseFloat(el&&el.value);if(!v)return flash('הזן משקל תקין');const u=me(),k=todayKey(),l=u.weights[u.weights.length-1];
  if(l&&l[0]===k)l[1]=v;else u.weights.push([k,v]);save();flash('השקילה נשמרה ✓')}
@@ -1404,7 +1411,7 @@ function isPR(e,w,r,b){if(!b.maxW||w<=0||r<=0)return false;return (w>b.maxW&&r>=
 const ssMid=(d,e)=>{const i=d.ex.findIndex(x=>x.id===e.id);return i>=0&&!!(d.ex[i+1]&&d.ex[i+1].ss)};
 const ssMidId=(did,eid)=>{for(const p of S.progs){const d=p.days.find(x=>x.id===did);if(d)return ssMid(d,{id:eid})}return false};
 function doneSet(did,eid,j,r){const u=me(),l=getLog(u,did,{id:eid}),s=l.sets[j],e=exOf(eid),wi=l.sets.slice(0,j).filter(x=>!x.wu).length,pv=s.wu?null:((u.hist[did]||{})[eid]||[])[wi];
- if(!s.d){if(s.w==='')s.w=pv?pv[0]:'';if(s.r==='')s.r=pv?pv[1]:'';s.d=1;s.pr=s.wu?false:isPR(e,num(s.w),num(s.r),bestOf(u,did,eid,j));save();{const pp=u.act&&progOf(u.act.pid),dd=pp&&pp.days.find(x=>x.id===did);if(dd)advance(u,dd,eid)}if(!s.wu&&ssMidId(did,eid)){autoPush();if(s.pr)flash('🏆 שיא חדש! '+(e?e.n:'')+' · '+s.w+' ק״ג × '+s.r,3500);render();return}startRest(s.wu?Math.min(num(r)||45,45):r,e?e.n:'');autoPush();if(s.pr)flash('🏆 שיא חדש! '+(e?e.n:'')+' · '+s.w+' ק״ג × '+s.r,3500);return}
+ if(!s.d){if(s.w==='')s.w=pv?pv[0]:'';if(s.r==='')s.r=pv?pv[1]:'';s.d=1;try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}s.pr=s.wu?false:isPR(e,num(s.w),num(s.r),bestOf(u,did,eid,j));save();{const pp=u.act&&progOf(u.act.pid),dd=pp&&pp.days.find(x=>x.id===did);if(dd)advance(u,dd,eid)}if(!s.wu&&ssMidId(did,eid)){autoPush();if(s.pr)flash('🏆 שיא חדש! '+(e?e.n:'')+' · '+s.w+' ק״ג × '+s.r,3500);render();return}startRest(s.wu?Math.min(num(r)||45,45):r,e?e.n:'');autoPush();if(s.pr)flash('🏆 שיא חדש! '+(e?e.n:'')+' · '+s.w+' ק״ג × '+s.r,3500);return}
  s.d=0;s.pr=false;save();render()}
 function prList(u,d){const c=u.cur[d.id]||{},a=[];d.ex.forEach(e=>{const l=c[e.id];if(l)l.sets.forEach(x=>{if(x.d&&x.pr)a.push(e.n+' · '+x.w+' ק״ג × '+x.r)})});return a.length?`<div class="card" style="border-color:#f5b301"><h2 style="color:#f5b301">🏆 שברת ${a.length} שיאים</h2>${a.map(x=>`<div style="padding:4px 0">${x}</div>`).join('')}</div>`:''}
 const ST={dr:['דרופ סט','Drop Set','בסוף הסט האחרון הורד כ-20% עד 30% מהמשקל והמשך עד כשל'],rp:['רסט-פאוז','Rest-Pause','בכשל נח 10 עד 15 שניות והמשך עוד כמה חזרות']};
@@ -1464,14 +1471,63 @@ const tipSeen=k=>{try{return localStorage.getItem('dfTip:'+k)==='1'}catch(e){ret
 const tipHtml=k=>`<div class="tipb" role="note"><span>💡 ${TIPS[k]}</span><button aria-label="סגור טיפ" onclick="tipX('${k}')">✕</button></div>`;
 function tipX(k){try{Object.keys(TIPS).concat([k]).forEach(x=>localStorage.setItem('dfTip:'+x,'1'))}catch(e){}render()}
 function tipsReset(){try{Object.keys(localStorage).filter(k=>k.startsWith('dfTip:')).forEach(k=>localStorage.removeItem(k))}catch(e){}flash('הטיפים יוצגו שוב ✓')}
-let lastSig='',vinT=0;
+
+/*PDFREPORT*/
+async function pdfReport(uid){const u=U(uid);if(!u)return;flash('מכין דוח...',4000);try{
+ const W=1080,H=1527,P=64,FF='system-ui,-apple-system,"Segoe UI",Arial,sans-serif',F=(w,z)=>w+' '+z+'px '+FF,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');x.direction='rtl';
+ const rr=(a,b,w,h,r)=>{x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()};
+ const T=(t,px,py,font,col,al)=>{x.font=font;x.fillStyle=col;x.textAlign=al||'right';x.fillText(String(t),px,py)};
+ x.fillStyle='#fff';x.fillRect(0,0,W,H);
+ const g=x.createLinearGradient(0,0,W,260);g.addColorStop(0,'#3b6cf6');g.addColorStop(1,'#8b5cf6');x.fillStyle=g;x.fillRect(0,0,W,250);
+ T('DOR FIT · דוח התקדמות',W-P,72,F(700,26),'rgba(255,255,255,.85)');T(u.name,W-P,152,F(800,64),'#fff');
+ T(new Date().toLocaleDateString('he-IL',{day:'numeric',month:'long',year:'numeric'})+(u.block&&u.block.n?' · '+u.block.n:''),W-P,206,F(500,28),'rgba(255,255,255,.9)');
+ const L=(u.log||[]).filter(r=>Date.now()-r.date<30*864e5),vol=L.reduce((a,r)=>a+(r.vol||0),0),rp=L.filter(r=>r.rpe),avgR=rp.length?(rp.reduce((a,r)=>a+r.rpe,0)/rp.length).toFixed(1):'–',prN=L.reduce((a,r)=>a+((r.prs||[]).length),0);
+ const tiles=[[L.length,'אימונים ב-30 יום'],[vol?Math.round(vol/1000).toLocaleString()+'K':'0','נפח (ק״ג)'],[avgR,'קושי ממוצע'],[prN,'שיאים חדשים']],tw=(W-2*P-3*16)/4;
+ tiles.forEach((t,i)=>{const px=W-P-tw-i*(tw+16);x.fillStyle='#f1f4fd';rr(px,290,tw,130,22);x.fill();T(t[0],px+tw/2,356,F(800,44),'#142044','center');T(t[1],px+tw/2,396,F(500,20),'#6b769c','center')});
+ // weight
+ let y=480;T('משקל גוף',W-P,y,F(800,36),'#142044');const ws=(u.weights||[]).slice(-12);
+ if(ws.length>=2){const vs=ws.map(a=>a[1]),mn=Math.min(...vs)-.5,mx=Math.max(...vs)+.5,cx=P+30,cw=W-2*P-60,cy=y+40,ch=240,X=i=>cx+cw*i/(ws.length-1),Y=v=>cy+ch-(v-mn)/(mx-mn)*ch;
+  x.strokeStyle='#e3e8f6';x.lineWidth=2;for(let k=0;k<4;k++){x.beginPath();x.moveTo(P,cy+ch*k/3);x.lineTo(W-P,cy+ch*k/3);x.stroke()}
+  x.direction='ltr';x.strokeStyle='#3b6cf6';x.lineWidth=6;x.lineJoin='round';x.beginPath();vs.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  vs.forEach((v,i)=>{x.fillStyle='#3b6cf6';x.beginPath();x.arc(X(i),Y(v),8,0,7);x.fill()});
+  T(vs[0],X(0),Y(vs[0])-18,F(700,24),'#142044','center');T(vs[vs.length-1],X(ws.length-1),Y(vs[vs.length-1])-18,F(700,24),'#142044','center');
+  T(ws[0][0],X(0),cy+ch+36,F(500,20),'#6b769c','center');T(ws[ws.length-1][0],X(ws.length-1),cy+ch+36,F(500,20),'#6b769c','center');x.direction='rtl';
+  const dl=+(vs[vs.length-1]-vs[0]).toFixed(1);T('\u200E'+(dl>0?'+':'')+dl+' ק״ג מאז '+ws[0][0],P,y,F(700,26),dl<=0?'#22b573':'#ff9a5c','left')}
+ else T(ws.length?ws[0][1]+' ק״ג · עדיין אין מספיק שקילות לגרף':'עדיין לא הוזנו שקילות',W-P,y+60,F(500,28),'#6b769c');
+ // measurements
+ y=860;T('היקפים (ס״מ)',W-P,y,F(800,36),'#142044');const M=lastMeas(u),a=M[0],b=M.length>1?M[M.length-1]:null;
+ if(a){const hd=['','התחלה','אחרון','שינוי'],cw2=[300,200,200,200];let yy=y+50;
+  [['',...hd.slice(1)]].forEach(()=>{});
+  const cols=[W-P,W-P-300,W-P-500,W-P-700];hd.forEach((h,i)=>T(h,cols[i],yy,F(600,22),'#6b769c'));yy+=18;
+  MEAS.filter(([k])=>a[k]).forEach(([k,l])=>{yy+=50;x.fillStyle='#eef1fb';x.fillRect(P,yy-36,W-2*P,2);const f=b&&b[k]?b[k]:null,dl=f?+(a[k]-f).toFixed(1):null;
+   T(l,cols[0],yy,F(600,28),'#142044');T(f||'–',cols[1],yy,F(500,28),'#6b769c');T(a[k],cols[2],yy,F(700,28),'#142044');T(dl===null?'–':'\u200E'+(dl>0?'+':'')+dl,cols[3],yy,F(700,28),dl===null||dl===0?'#6b769c':dl<0?'#22b573':'#ff9a5c')});
+  T('מדידה אחרונה: '+new Date(a.d+'T12:00:00').toLocaleDateString('he-IL'),P,y,F(500,22),'#6b769c','left')}
+ else T('עדיין לא הוזנו מדידות',W-P,y+60,F(500,28),'#6b769c');
+ // PRs
+ y=1285;T('שיאים אישיים (משקל מקסימלי)',W-P,y,F(800,36),'#142044');
+ const pr=Object.entries(u.pr||{}).map(([id,v])=>{const e=exOf(id);return e&&v&&v.maxW?[e.n,v.maxW]:null}).filter(Boolean).sort((p,q)=>q[1]-p[1]).slice(0,4);
+ if(pr.length)pr.forEach((p,i)=>{const yy=y+56+i*50;T('🏆 '+p[0],W-P,yy,F(600,28),'#142044');T(p[1]+' ק״ג',P,yy,F(800,28),'#3b6cf6','left')});else T('עדיין אין שיאים שמורים',W-P,y+60,F(500,28),'#6b769c');
+ T('הופק ע״י DOR FIT',W/2,H-30,F(500,20),'#9aa4cc','center');
+ const du=cv.toDataURL('image/jpeg',.9),bin=atob(du.split(',')[1]),jb=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)jb[i]=bin.charCodeAt(i);
+ const enc=s=>new TextEncoder().encode(s),parts=[],off=[];let pos=0;const add=d=>{const u8=typeof d==='string'?enc(d):d;parts.push(u8);pos+=u8.length};
+ add('%PDF-1.4\n');const ob=(n,body)=>{off[n]=pos;add(n+' 0 obj\n');add(body);add('\nendobj\n')};
+ ob(1,'<</Type/Catalog/Pages 2 0 R>>');ob(2,'<</Type/Pages/Kids[3 0 R]/Count 1>>');ob(3,'<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</XObject<</Im0 5 0 R>>>>>>');
+ const cs='q 595 0 0 842 0 0 cm /Im0 Do Q';ob(4,'<</Length '+cs.length+'>>\nstream\n'+cs+'\nendstream');
+ off[5]=pos;add('5 0 obj\n<</Type/XObject/Subtype/Image/Width '+W+'/Height '+H+'/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length '+jb.length+'>>\nstream\n');add(jb);add('\nendstream\nendobj\n');
+ const xr=pos;let xs='xref\n0 6\n0000000000 65535 f \n';for(let i=1;i<=5;i++)xs+=String(off[i]).padStart(10,'0')+' 00000 n \n';add(xs+'trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n'+xr+'\n%%EOF');
+ const bl=new Blob(parts,{type:'application/pdf'}),f=new File([bl],'dorfit-report.pdf',{type:'application/pdf'});
+ if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:'דוח התקדמות · '+u.name})}catch(e){}}
+ else{const an=document.createElement('a');an.href=URL.createObjectURL(bl);an.download='dorfit-report.pdf';document.body.appendChild(an);an.click();setTimeout(()=>{an.remove();URL.revokeObjectURL(an.href)},4000);flash('הדוח ירד ✓')}
+ }catch(e){flash('לא הצלחתי ליצור דוח')}}
+/*/PDFREPORT*/
+let lastSig='',vinT=0,rinT=0;
 function render(){const a=document.getElementById('app'),u=me(),f=document.activeElement&&document.activeElement.id;
  let sig='';try{sig=[u&&u.id,tab,ct,sel,pm,lm,dtab,typeof mo!=='undefined'?mo:'',splash,inst].join('|')}catch(e){}
  const same=sig===lastSig;let sb=[],sc=[];if(same){sb=[...a.querySelectorAll('.bar i')].map(e=>e.style.width);sc=[...a.querySelectorAll('svg circle[stroke-dasharray]')].map(e=>[e.getAttribute('stroke-dasharray'),e.getAttribute('stroke-dashoffset')])}
  a.innerHTML=splash?splashHtml():!u?login():u.role==='c'?coach():trainee(u);if(offline&&u)a.insertAdjacentHTML('beforeend','<div class="off" role="status">אין חיבור לשרת. השינויים נשמרים במכשיר ויישלחו כשהחיבור יחזור</div>');if(inst)a.insertAdjacentHTML('beforeend',instHtml());
  if(u&&!splash&&!inst){const k=tipKey(u);if(k&&TIPS[k]&&!tipSeen(k)){const w=a.querySelector('.wrap');if(w)w.insertAdjacentHTML('afterbegin',tipHtml(k))}}
  if(same){const nb=[...a.querySelectorAll('.bar i')];if(nb.length===sb.length)nb.forEach((e,i)=>{const w=e.style.width;if(sb[i]!==w){e.style.width=sb[i];void e.offsetWidth;e.style.width=w}});const nc=[...a.querySelectorAll('svg circle[stroke-dasharray]')];if(nc.length===sc.length)nc.forEach((e,i)=>{const d=e.getAttribute('stroke-dasharray'),o=e.getAttribute('stroke-dashoffset');if(sc[i][0]!==d||sc[i][1]!==o){e.setAttribute('stroke-dasharray',sc[i][0]);if(sc[i][1]!==null)e.setAttribute('stroke-dashoffset',sc[i][1]);void e.getBoundingClientRect();e.setAttribute('stroke-dasharray',d);if(o!==null)e.setAttribute('stroke-dashoffset',o)}})}
- else{a.classList.add('vin');clearTimeout(vinT);vinT=setTimeout(()=>a.classList.remove('vin'),450)}
+ else{a.classList.add('vin','rin');clearTimeout(vinT);vinT=setTimeout(()=>a.classList.remove('vin'),450);clearTimeout(rinT);rinT=setTimeout(()=>a.classList.remove('rin'),1100)}
  lastSig=sig;if(f){const e=document.getElementById(f);if(e)e.focus()}}
 boot();
 </script>
