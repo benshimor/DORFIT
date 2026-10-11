@@ -311,7 +311,7 @@ setInterval(() => {
 }, 3600e3);
 
 // ---------- AI assistant for the coach (drafts only, coach reviews everything) ----------
-const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-5-5', AI_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 40;
+const GEM = !!process.env.GEMINI_API_KEY, AI_MODEL = process.env.AI_MODEL || (GEM ? 'gemini-3.6-flash' : 'claude-sonnet-5-5'), AI_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 40;
 let exNames = null;
 function exByGroup() {
   if (exNames) return exNames;
@@ -321,20 +321,28 @@ function exByGroup() {
   return (exNames = g);
 }
 async function aiAsk(system, user) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) fail(503, 'עוזר ה-AI לא מוגדר: חסר ANTHROPIC_API_KEY בשרת');
+  const key = GEM ? process.env.GEMINI_API_KEY : process.env.ANTHROPIC_API_KEY;
+  if (!key) fail(503, 'עוזר ה-AI לא מוגדר: חסר GEMINI_API_KEY בשרת');
   const day = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jerusalem' }), k = 'ai:' + day;
   const used = Number((db.prepare('select v from kv where k=?').get(k) || {}).v || 0);
   if (used >= AI_LIMIT) fail(429, 'הגעת למגבלת השימוש היומית ב-AI (' + AI_LIMIT + ')');
   db.prepare("insert into kv(k,v) values(?,?) on conflict(k) do update set v=excluded.v").run(k, String(used + 1));
-  const r = await fetch((process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, system, messages: [{ role: 'user', content: user }] }) });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { console.log('[ai] error', r.status, JSON.stringify(j).slice(0, 300)); fail(502, 'שגיאה משירות ה-AI (' + r.status + ')'); }
-  const txt = (j.content || []).map(c => c.text || '').join('');
+  let r, j, txt;
+  if (GEM) {
+    r = await fetch((process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com') + '/v1beta/models/' + encodeURIComponent(AI_MODEL) + ':generateContent', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: 'user', parts: [{ text: user }] }], generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 8000, temperature: 0.6 } }) });
+    j = await r.json().catch(() => ({}));
+    if (!r.ok) { console.log('[ai] error', r.status, JSON.stringify(j).slice(0, 300)); fail(r.status === 429 ? 429 : 502, r.status === 429 ? 'חריגה ממגבלת ה-AI החינמית, נסה שוב בעוד דקה' : 'שגיאה משירות ה-AI (' + r.status + ')'); }
+    txt = (((j.candidates || [])[0] || {}).content || {}).parts ? ((j.candidates[0].content.parts) || []).filter(p => !p.thought).map(p => p.text || '').join('') : '';
+  } else {
+    r = await fetch((process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com') + '/v1/messages', { method: 'POST', signal: AbortSignal.timeout(120000), headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' }, body: JSON.stringify({ model: AI_MODEL, max_tokens: 6000, system, messages: [{ role: 'user', content: user }] }) });
+    j = await r.json().catch(() => ({}));
+    if (!r.ok) { console.log('[ai] error', r.status, JSON.stringify(j).slice(0, 300)); fail(502, 'שגיאה משירות ה-AI (' + r.status + ')'); }
+    txt = (j.content || []).map(c => c.text || '').join('');
+  }
   const a = txt.indexOf('{'), b = txt.lastIndexOf('}');
   try { return JSON.parse(txt.slice(a, b + 1)); } catch (e) { fail(502, 'תשובת ה-AI לא הייתה תקינה, נסה שוב'); }
 }
-app.get('/api/ai/status', wrap((req, res) => { auth(req, 'coach'); res.json({ on: !!process.env.ANTHROPIC_API_KEY, model: AI_MODEL }); }));
+app.get('/api/ai/status', wrap((req, res) => { auth(req, 'coach'); res.json({ on: !!(GEM ? process.env.GEMINI_API_KEY : process.env.ANTHROPIC_API_KEY), model: AI_MODEL }); }));
 app.post('/api/ai/draft', wrap(async (req, res) => {
   auth(req, 'coach');
   const { kind, uid, brief } = req.body || {};
