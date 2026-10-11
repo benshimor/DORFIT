@@ -283,6 +283,33 @@ app.put('/api/library', wrap((req, res) => {
   res.json({ ok: true });
 }));
 
+// ---------- daily automatic DB snapshot ----------
+const BK_DIR = process.env.BACKUP_DIR || path.join(path.dirname(DB_PATH), 'backups'), BK_KEEP = Math.max(1, Number(process.env.BACKUP_KEEP) || 14);
+let bkBusy = false;
+async function autoBackup(why) {
+  if (bkBusy) return; bkBusy = true;
+  try {
+    fs.mkdirSync(BK_DIR, { recursive: true });
+    const day = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jerusalem' }), file = path.join(BK_DIR, 'app-' + day + '.db'), tmp = file + '.tmp';
+    await db.backup(tmp);
+    fs.renameSync(tmp, file);
+    db.prepare("insert into kv(k,v) values('last_backup',?) on conflict(k) do update set v=excluded.v").run(String(Date.now()));
+    const all = fs.readdirSync(BK_DIR).filter(f => /^app-\d{4}-\d{2}-\d{2}\.db$/.test(f)).sort();
+    all.slice(0, Math.max(0, all.length - BK_KEEP)).forEach(f => { try { fs.unlinkSync(path.join(BK_DIR, f)); } catch (e) {} });
+    console.log('[backup] ok (' + why + ') ' + path.basename(file) + ' · ' + Math.round(fs.statSync(file).size / 1024) + 'KB · kept ' + Math.min(all.length, BK_KEEP));
+  } catch (e) { console.log('[backup] failed:', e.message); }
+  bkBusy = false;
+}
+db.exec("create table if not exists kv(k text primary key, v text not null)");
+setTimeout(() => {
+  const r = db.prepare("select v from kv where k='last_backup'").get();
+  if (!r || Date.now() - Number(r.v) > 20 * 3600e3) autoBackup('startup');
+}, 20000);
+setInterval(() => {
+  const r = db.prepare("select v from kv where k='last_backup'").get();
+  if (!r || Date.now() - Number(r.v) > 23 * 3600e3) autoBackup('daily');
+}, 3600e3);
+
 // ---------- web push (rest-timer notifications) ----------
 let webpush = null; try { webpush = require('web-push'); } catch (e) { console.log('[push] web-push not installed, notifications disabled'); }
 db.exec("create table if not exists kv(k text primary key, v text not null); create table if not exists push_subs(endpoint text primary key, user_id text not null, data text not null)");
