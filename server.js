@@ -95,7 +95,7 @@ app.use((req, res, next) => {
 });
 const cookies = req => Object.fromEntries((req.headers.cookie || '').split(';').map(c => c.trim().split('=')).filter(a => a[0]).map(a => [a[0], decodeURIComponent(a.slice(1).join('='))]));
 const setCookie = (res, token, maxAge) => res.append('Set-Cookie', `sid=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}${PROD ? '; Secure' : ''}`);
-const wrap = fn => (req, res) => { try { fn(req, res); } catch (e) { if (!e.status) console.error(e); res.status(e.status || 500).json({ error: e.status ? e.message : 'שגיאת שרת' }); } };
+const wrap = fn => (req, res) => { const h = e => { if (!e.status) console.error(e); if (!res.headersSent) res.status(e.status || 500).json({ error: e.status ? e.message : 'שגיאת שרת' }); }; try { const r = fn(req, res); if (r && r.catch) r.catch(h); } catch (e) { h(e); } };
 
 app.use('/api', (req, res, next) => {
   if (req.method !== 'GET' && req.headers['x-app'] !== '1' && !req.path.startsWith('/h/')) return res.status(403).json({ error: 'forbidden' });
@@ -254,7 +254,7 @@ app.put('/api/library', wrap((req, res) => {
   if (foods !== undefined) {
     if (!Array.isArray(foods) || foods.length > 2000 || !foods.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const m = x => Math.max(0, Math.min(5000, Math.round((Number(x) || 0) * 10) / 10));
-    cleanFd = foods.map(d => ({ id: d.id, n: d.n, q: typeof d.q === 'string' ? d.q.slice(0, 30) : '', k: m(d.k), p: m(d.p), c: m(d.c), f: m(d.f), b: d.b === 'g' ? 'g' : 's', cat: typeof d.cat === 'string' ? d.cat.slice(0, 30) : '', pu: typeof d.pu === 'string' ? d.pu.slice(0, 30) : '', u: Array.isArray(d.u) ? d.u.filter(x => obj(x) && str(x.n, 30) && num(x.g) && x.g > 0 && x.g <= 5000).slice(0, 12).map(x => ({ n: x.n, g: Math.round(x.g * 10) / 10 })) : [] }));
+    cleanFd = foods.map(d => ({ id: d.id, n: d.n, q: typeof d.q === 'string' ? d.q.slice(0, 30) : '', k: m(d.k), p: m(d.p), c: m(d.c), f: m(d.f), b: d.b === 'g' ? 'g' : 's', cat: typeof d.cat === 'string' ? d.cat.slice(0, 30) : '', pu: typeof d.pu === 'string' ? d.pu.slice(0, 30) : '', bc: /^\d{8,14}$/.test(String(d.bc || '')) ? String(d.bc) : '', u: Array.isArray(d.u) ? d.u.filter(x => obj(x) && str(x.n, 30) && num(x.g) && x.g > 0 && x.g <= 5000).slice(0, 12).map(x => ({ n: x.n, g: Math.round(x.g * 10) / 10 })) : [] }));
   }
   const ins = db.prepare('insert into docs(id,type,owner,data) values(?,?,?,?)');
   db.transaction(() => {
@@ -346,14 +346,49 @@ app.get('/api/exlib', wrap((req, res) => {
   res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
   res.sendFile(p);
 }));
+let BCS = null;
+const offCache = new Map();
+const gtinOk = c => { if (!/^\d+$/.test(c) || ![8, 12, 13, 14].includes(c.length)) return false; const d = [...c].reverse().map(Number); let t = 0; d.forEach((x, i) => { if (i) t += x * (i % 2 ? 3 : 1); }); return (10 - t % 10) % 10 === d[0]; };
+const fromOff = j => {
+  const p = j && j.product; if (!p) return null; const n = p.nutriments || {};
+  const name = String(p.product_name_he || p.product_name || '').trim(); if (!name) return null;
+  let k = Number(n['energy-kcal_100g']); if (!Number.isFinite(k)) { const kj = Number(n['energy_100g']); k = Number.isFinite(kj) ? kj / 4.184 : NaN; }
+  const pr = Number(n.proteins_100g), c = Number(n.carbohydrates_100g), f = Number(n.fat_100g);
+  if (![k, pr, c, f].every(Number.isFinite) || k < 0 || k > 950 || Math.max(pr, c, f) > 100) return null;
+  const est = 4 * pr + 4 * c + 9 * f; if (Math.abs(k - est) > Math.max(60, 0.5 * est)) return null;
+  const brand = String(p.brands || '').split(',')[0].trim();
+  const r1 = x => Math.round(x * 10) / 10, units = [], sq = Number(p.serving_quantity), pq = Number(String(p.quantity || '').replace(/[^\d.]/g, ''));
+  if (sq > 0 && sq <= 2000) units.push(['מנה (' + r1(sq) + ' גרם)', r1(sq)]);
+  else if (pq > 0 && pq <= 5000 && /(g|ml|גרם|מל)/i.test(String(p.quantity || ''))) units.push(['אריזה (' + Math.round(pq) + ' גרם)', Math.round(pq)]);
+  return [(name + (brand && !name.toLowerCase().includes(brand.toLowerCase()) ? ' · ' + brand : '')).slice(0, 120), 'מוצרים ארוזים', r1(k), r1(pr), r1(c), r1(f), units];
+};
+app.get('/api/barcode/:code', wrap(async (req, res) => {
+  auth(req);
+  const code = String(req.params.code || '');
+  if (!/^\d{8,14}$/.test(code)) fail(400, 'ברקוד לא תקין');
+  if (!BCS) {
+    const p = [path.join(__dirname, 'barcodes.json.gz'), path.join(__dirname, 'public', 'barcodes.json.gz')].find(x => fs.existsSync(x));
+    try { BCS = p ? JSON.parse(require('zlib').gunzipSync(fs.readFileSync(p)).toString('utf8')) : {}; } catch (e) { BCS = {}; }
+  }
+  const alt = [code, code.replace(/^0+/, ''), code.padStart(13, '0')];
+  for (const c of alt) if (BCS[c] !== undefined) return res.json({ i: BCS[c], code });
+  if (offCache.has(code)) return res.json(offCache.get(code));
+  let out = { none: true, code };
+  try {
+    const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '.json?fields=product_name,product_name_he,brands,nutriments,serving_quantity,quantity', { signal: AbortSignal.timeout(6000), headers: { 'User-Agent': 'DorFit/1.0 (personal training app)' } });
+    if (r.ok) { const row = fromOff(await r.json()); if (row) out = { row, code }; }
+  } catch (e) { out = { none: true, code, offline: true }; }
+  if (!out.offline) { if (offCache.size > 2000) offCache.clear(); offCache.set(code, out); }
+  res.json(out);
+}));
 app.get('/api/config', (req, res) => res.json({ apk: !!process.env.APK_URL }));
 app.get('/apk', (req, res) => process.env.APK_URL ? res.redirect(process.env.APK_URL) : res.status(404).type('text/plain').send('APK link is not configured'));
 app.get('/healthz', (req, res) => res.send('ok'));
 app.use('/api', (req, res) => res.status(404).json({ error: 'not found' }));
 
-const WEB = ['index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'sw.js'];
+const WEB = ['index.html', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'sw.js', 'zxing.min.js'];
 const webFile = f => [path.join(__dirname, 'public', f), path.join(__dirname, f)].find(p => fs.existsSync(p));
-app.get(['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/sw.js'], (req, res) => {
+app.get(['/', '/index.html', '/manifest.json', '/icon.svg', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png', '/sw.js', '/zxing.min.js'], (req, res) => {
   const f = req.path === '/' ? 'index.html' : req.path.slice(1);
   const p = WEB.includes(f) && webFile(f);
   if (!p) return res.status(404).send('missing ' + f);
