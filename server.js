@@ -363,7 +363,7 @@ app.post('/api/ai/draft', wrap(async (req, res) => {
   if (!row) fail(404, 'מתאמן לא נמצא');
   const u = J(row.data), t = (v, m) => (typeof v === 'string' ? v.trim().slice(0, m) : ''), n = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(Number(v) || 0)));
   const w = (u.weights || []).slice(-6).map(x => ({ date: x[0], kg: x[1] }));
-  const ctx = { name: String(u.name || '').split(' ')[0], recentWeights: w, supplements: t(u.supp, 200), cardio: t(u.cardio, 200), coachRequest: t(brief.text, 800), goal: t(brief.goal, 60), level: t(brief.level, 40), equipment: t(brief.equip, 200), restrictions: t(brief.restr, 300), intake: obj(u.intk) ? { age: u.intk.age, heightCm: u.intk.height, weightKg: u.intk.weight, experience: u.intk.exp, foodRestrictions: u.intk.food, usualDay: u.intk.diet } : undefined };
+  const ctx = { name: String(u.name || '').split(' ')[0], recentWeights: w, supplements: t(u.supp, 200), cardio: t(u.cardio, 200), coachRequest: t(brief.text, 800), goal: t(brief.goal, 60), level: t(brief.level, 40), equipment: t(brief.equip, 200), restrictions: t(brief.restr, 300), intake: obj(u.intk) ? { motivation: u.intk.why, age: u.intk.age, heightCm: u.intk.height, weightKg: u.intk.weight, experience: u.intk.exp, foodRestrictions: u.intk.food, usualDay: u.intk.diet } : undefined };
   const SYS = 'אתה עוזר למאמן כושר ישראלי. אתה מכין טיוטה בלבד, והמאמן יבדוק ויערוך הכול לפני שהמתאמן יראה אותה. כתוב בעברית. אל תיתן ייעוץ רפואי, ואל תציע דיאטות קיצוניות (לא פחות מ-1200 קלוריות ביום). אם יש מגבלה רפואית או פציעה, התחשב בה בזהירות והזכר ב-summary שהמאמן צריך לאמת. החזר JSON תקין בלבד, בלי טקסט לפניו או אחריו.';
   if (kind === 'plan') {
     const P = n(brief.p, 0, 600), C = n(brief.c, 0, 1000), F = n(brief.f, 0, 400), mac = P || C || F, cal = n(brief.kcal, 0, 6000) || (mac ? P * 4 + C * 4 + F * 9 : 0), meals = n(brief.meals, 2, 8) || 5;
@@ -450,7 +450,7 @@ db.exec("create table if not exists intake(id text primary key, ts integer not n
 const tokOk = t => String(t || '').replace(/[^a-f0-9]/gi, '').toLowerCase() === intakeTok();
 const intakeTok = () => { const r = db.prepare("select v from kv where k='intake_tok'").get(); if (r) return r.v; const v = crypto.randomBytes(12).toString('hex'); db.prepare("insert into kv(k,v) values('intake_tok',?)").run(v); return v; };
 const intakeHits = new Map();
-const IK = { name: 80, phone: 20, age: 3, height: 3, weight: 5, goal: 60, exp: 40, days: 2, equip: 120, inj: 400, food: 300, diet: 500, notes: 600 };
+const IK = { name: 80, phone: 20, age: 3, height: 3, weight: 5, goal: 60, why: 600, exp: 40, days: 2, equip: 120, inj: 400, food: 300, diet: 500, notes: 600 };
 const baseUrl = req => { if (process.env.PUBLIC_URL) return String(process.env.PUBLIC_URL).replace(/\/+$/, ''); const p = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim(); return p + '://' + req.get('host'); };
 app.get('/api/intake', wrap((req, res) => { auth(req, 'coach'); res.json({ token: intakeTok(), base: baseUrl(req), list: db.prepare('select id,ts,data,done from intake where done=0 order by ts desc limit 100').all().map(r => ({ id: r.id, ts: r.ts, ...J(r.data) })) }); }));
 app.post('/api/intake/reset', wrap((req, res) => { auth(req, 'coach'); db.prepare("delete from kv where k='intake_tok'").run(); res.json({ token: intakeTok(), base: baseUrl(req) }); }));
@@ -473,6 +473,7 @@ const INTAKE_HTML = `<!doctype html><html lang="he" dir="rtl"><head><meta charse
 <label>שם מלא *</label><input id="name" autocomplete="name"><label>טלפון (וואטסאפ) *</label><input id="phone" type="tel" inputmode="tel" autocomplete="tel">
 <div class="r"><div><label>גיל</label><input id="age" inputmode="numeric"></div><div><label>גובה (ס״מ)</label><input id="height" inputmode="numeric"></div><div><label>משקל (ק״ג)</label><input id="weight" inputmode="decimal"></div></div>
 <label>המטרה העיקרית</label><select id="goal"><option>ירידה במשקל / חיטוב</option><option>עלייה במסה</option><option>שיפור כושר וכוח</option><option>שמירה על כושר</option><option>אחר</option></select>
+<label>למה אתה רוצה להתחיל תהליך עכשיו? מה חשוב לך להשיג?</label><textarea id="why" placeholder="במילים שלך, מה מניע אותך"></textarea>
 <div class="r"><div><label>ניסיון באימונים</label><select id="exp"><option>מתחיל</option><option>בינוני</option><option>מתקדם</option></select></div><div><label>אימונים בשבוע</label><select id="days"><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select></div></div>
 <label>איפה מתאמנים / איזה ציוד יש</label><input id="equip" placeholder="חדר כושר, בית עם משקולות...">
 <label>פציעות או בעיות רפואיות</label><textarea id="inj" placeholder="אם אין, אפשר להשאיר ריק"></textarea>
@@ -481,7 +482,7 @@ const INTAKE_HTML = `<!doctype html><html lang="he" dir="rtl"><head><meta charse
 <label>עוד משהו שחשוב לי לדעת</label><textarea id="notes"></textarea>
 <input class="hp" id="website" tabindex="-1" autocomplete="off"><div class="e" id="e"></div><button id="b">שליחה</button></div>
 <script>
-var T='__TOK__',F=['name','phone','age','height','weight','goal','exp','days','equip','inj','food','diet','notes','website'];
+var T='__TOK__',F=['name','phone','age','height','weight','goal','why','exp','days','equip','inj','food','diet','notes','website'];
 document.getElementById('b').onclick=function(){var b=this,o={};F.forEach(function(k){o[k]=document.getElementById(k).value});var e=document.getElementById('e');e.textContent='';if(!o.name.trim()||!o.phone.trim()){e.textContent='נא למלא שם וטלפון';return}b.disabled=true;
 fetch('/api/intake/'+T,{method:'POST',headers:{'Content-Type':'application/json','X-App':'1'},body:JSON.stringify(o)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error(j.error||'שגיאה');return j})}).then(function(){document.getElementById('f').innerHTML='<div class="ok"><b>תודה! 🙏</b>קיבלתי את הפרטים ואחזור אליך בקרוב.</div>'}).catch(function(x){b.disabled=false;e.textContent=x.message||'שגיאה, נסה שוב'})};
 </script></body></html>`;
