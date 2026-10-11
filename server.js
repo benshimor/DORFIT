@@ -25,11 +25,12 @@ const str = (x, n) => typeof x === 'string' && x.length <= n;
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
-const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia', 'rtime', 'remOff', 'hs']; // trainee-owned
+const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia', 'rtime', 'remOff', 'hs', 'rf']; // trainee-owned
 const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone', 'remT', 'sub'];                                                          // coach-owned
 const checks = {
   water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
   pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20), sub: x => obj(x) && JSON.stringify(x).length < 2000, remT: x => str(x, 5) && (x === '' || /^\d\d:\d\d$/.test(x)),
+  rf: x => Array.isArray(x) && x.length <= 60,
   hs: x => x === null || (obj(x) && str(x.d, 12) && num(x.h) && x.h >= 0 && x.h <= 24),
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
