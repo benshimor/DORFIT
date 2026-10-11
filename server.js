@@ -128,9 +128,17 @@ app.post('/api/login', wrap((req, res) => {
 app.post('/api/logout', wrap((req, res) => { if (req.sid) db.prepare('delete from sessions where token=?').run(req.sid); setCookie(res, '', 0); res.json({ ok: true }); }));
 
 const docs = type => db.prepare('select data from docs where type=?').all(type).map(r => J(r.data));
+const MSG_DEF = [['מה המצב', 'היי {שם}, מה המצב אלוף? 💪'], ['לא התאמן', 'היי {שם}, מה המצב אלוף? 💪 שמתי לב שלא התאמנת כמה ימים. הכול טוב?'], ['המנוי מסתיים', 'היי {שם}, המנוי שלך מסתיים בקרוב, בוא נדבר על ההמשך 🙂'], ['תזונה', 'היי {שם}, איך הולכת התזונה השבוע? אל תשכח לסמן ארוחות באפליקציה 🍽️'], ['מדידות', 'היי {שם}, הגיע הזמן למדידות הבאות. אפשר למלא באפליקציה 📏'], ['עידוד', 'כל הכבוד {שם}! אימון מצוין, ממשיכים 🔥']];
+function seedMsgs() {
+  db.exec("create table if not exists kv(k text primary key, v text not null)");
+  if (db.prepare("select 1 from kv where k='msgs_seeded'").get()) return;
+  const ins = db.prepare('insert or ignore into docs(id,type,owner,data) values(?,?,?,?)');
+  MSG_DEF.forEach((m, i) => ins.run('m' + (i + 1), 'msg', null, JSON.stringify({ id: 'm' + (i + 1), n: m[0], t: m[1] })));
+  db.prepare("insert into kv(k,v) values('msgs_seeded','1')").run();
+}
 app.get('/api/state', wrap((req, res) => {
   auth(req);
-  if (req.user.role === 'coach') return res.json({ me: req.user.id, users: db.prepare('select * from users').all().map(outUser), progs: docs('prog'), plans: docs('plan'), exs: docs('ex'), foods: docs('food') });
+  if (req.user.role === 'coach') return res.json({ me: req.user.id, users: db.prepare('select * from users').all().map(outUser), progs: docs('prog'), plans: docs('plan'), exs: docs('ex'), foods: docs('food'), msgs: (seedMsgs(), docs('msg')) });
   const mine = db.prepare('select * from docs where owner=?').all(req.user.id).map(r => ({ type: r.type, d: J(r.data) }));
   res.json({ me: req.user.id, users: [(({ sub, pays, ...o }) => o)(outUser(req.user))], progs: mine.filter(x => x.type === 'prog').map(x => x.d), plans: mine.filter(x => x.type === 'plan').map(x => x.d), exs: docs('ex'), foods: docs('food') });
 }));
@@ -242,7 +250,7 @@ app.delete('/api/users/:id', wrap((req, res) => {
 }));
 app.put('/api/library', wrap((req, res) => {
   auth(req, 'coach');
-  const { progs, plans, exs, foods } = req.body || {};
+  const { progs, plans, exs, foods, msgs } = req.body || {};
   const valid = (a, key) => Array.isArray(a) && a.length < 1000 && a.every(d => obj(d) && str(d.id, 40) && str(d.name, 120) && Array.isArray(d[key]));
   if (!valid(progs, 'days') || !valid(plans, 'meals')) fail(400, 'נתונים לא תקינים');
   let cleanEx = null;
@@ -250,6 +258,12 @@ app.put('/api/library', wrap((req, res) => {
     if (!Array.isArray(exs) || exs.length > 1000 || !exs.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
     cleanEx = exs.map(d => ({ id: d.id, n: d.n, g: t(d.g, 30), sets: Math.max(0, Math.min(20, Number(d.sets) || 0)), rep: t(String(d.rep == null ? '' : d.rep), 20), rest: Math.max(0, Math.min(900, Number(d.rest) || 0)), tip: t(d.tip, 500), video: t(d.video, 300) }));
+  }
+  let cleanMs = null;
+  if (msgs !== undefined) {
+    if (!Array.isArray(msgs) || msgs.length > 60 || !msgs.every(d => obj(d) && str(d.id, 40))) fail(400, 'נתונים לא תקינים');
+    const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
+    cleanMs = msgs.map(d => ({ id: d.id, n: t(d.n, 40), t: t(d.t, 600) }));
   }
   let cleanFd = null;
   if (foods !== undefined) {
@@ -260,6 +274,7 @@ app.put('/api/library', wrap((req, res) => {
   const ins = db.prepare('insert into docs(id,type,owner,data) values(?,?,?,?)');
   db.transaction(() => {
     if (cleanFd) { db.prepare("delete from docs where type='food'").run(); cleanFd.forEach(d => ins.run(d.id, 'food', null, JSON.stringify(d))); }
+    if (cleanMs) { db.prepare("delete from docs where type='msg'").run(); cleanMs.forEach(d => ins.run(d.id, 'msg', null, JSON.stringify(d))); }
     if (cleanEx) { db.prepare("delete from docs where type='ex'").run(); cleanEx.forEach(d => ins.run(d.id, 'ex', null, JSON.stringify(d))); }
     db.prepare("delete from docs where type in ('prog','plan')").run();
     progs.forEach(d => ins.run(d.id, 'prog', d.owner || null, JSON.stringify(d)));
