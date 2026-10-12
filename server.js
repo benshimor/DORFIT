@@ -231,7 +231,7 @@ app.put('/api/me', wrap((req, res) => {
 db.exec("create table if not exists kv(k text primary key, v text not null)");
 const hTok = uid => { const r = db.prepare('select v from kv where k=?').get('htok:' + uid); if (r) return r.v; const v = crypto.randomBytes(24).toString('hex'); db.prepare('insert into kv(k,v) values(?,?)').run('htok:' + uid, v); return v; };
 const hHits = new Map();
-const todayTZ = () => new Intl.DateTimeFormat('en-CA', { timeZone: process.env.APP_TZ || 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+const todayTZ = () => new Intl.DateTimeFormat('en-CA', { timeZone: process.env.APP_TZ || 'Asia/Jerusalem', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(Date.now() - 4 * 36e5));
 const numIn = v => { if (Array.isArray(v)) v = v[0]; if (v === undefined || v === null) return null; const n = parseFloat(String(v).replace(/,/g, '').replace(/[^\d.]/g, '')); return isFinite(n) ? n : null; };
 // sleep may arrive as hours, minutes or seconds depending on how the Shortcut sums it
 const sleepHours = n => n === null ? null : n <= 24 ? n : n <= 1440 ? n / 60 : n <= 86400 ? n / 3600 : null;
