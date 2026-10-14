@@ -678,7 +678,12 @@ const optName=(o,i)=>(o&&o.d&&o.d.trim())||((o&&o.items)||[]).map(x=>x.n).filter
 const newOpt=()=>({d:'',items:[]});
 function migPlan(p){p.meals.forEach(m=>m.opts.forEach(o=>{if(!Array.isArray(o.items)){o.items=(num(o.k)||num(o.p)||(o.d||'').trim())?[{n:(o.d||'מאכל').trim(),q:'',k:num(o.k),p:num(o.p),c:num(o.c),f:num(o.f)}]:[]}}))}
 const FDHOOK={};
-const fdName=(id,v,path,ph,hook)=>{FDHOOK[id]=hook;return `<div style="position:relative;flex:1;min-width:0"><input id="${id}" autocomplete="off" placeholder="${ph}" style="padding-inline-end:48px" value="${String(v).replace(/"/g,'&quot;')}" oninput="fdSug('${id}')" onfocus="fdSug('${id}')" onblur="setTimeout(()=>{const l=document.getElementById('${id}-l');if(l)l.hidden=true},180)" onchange="ed('${path}',this.value);render()"><button type="button" class="cam" onclick="scanOpen('${id}')" aria-label="סריקת ברקוד">📷</button><div class="sg2" id="${id}-l" hidden></div></div>`};
+function fdNameCh(id,path,v){v=String(v||'').trim();const k=path.split('.');let o=S;for(let i=0;i<k.length-1;i++)o=o[k[i]];const last=k[k.length-1];if(o&&o.n===v&&last==='n'&&o.fid){render();return}
+ let f=v?fdFind(v):null;if(!f&&v&&mohD){const i=mohD.findIndex(r=>r[0].trim()===v);if(i>=0)f=mohToFood(i)}
+ const h=FDHOOK[id];if(f&&h&&!(o&&o.fid===f.id&&o.n===f.n)){h(f);return}
+ if(o&&o.fid&&o.n!==v){delete o.fid;delete o.amt;delete o.ut}
+ ed(path,v);render()}
+const fdName=(id,v,path,ph,hook)=>{FDHOOK[id]=hook;return `<div style="position:relative;flex:1;min-width:0"><input id="${id}" autocomplete="off" placeholder="${ph}" style="padding-inline-end:48px" value="${String(v).replace(/"/g,'&quot;')}" oninput="fdSug('${id}')" onfocus="fdSug('${id}')" onblur="setTimeout(()=>{const l=document.getElementById('${id}-l');if(l)l.hidden=true},180)" onchange="fdNameCh('${id}','${path}',this.value)"><button type="button" class="cam" onclick="scanOpen('${id}')" aria-label="סריקת ברקוד">📷</button><div class="sg2" id="${id}-l" hidden></div></div>`};
 function itemPick(pi,mi,oi,xi,f){const it=S.plans[pi].meals[mi].opts[oi].items,old=it[xi],n=itemFrom(f,fdG(f)?100:1,'g');if(old&&old.alts)n.alts=old.alts;it[xi]=n;save();render()}
 function altEd(pi,mi,oi,xi,x){const ib=`plans.${pi}.meals.${mi}.opts.${oi}.items.${xi}`,al=x.alts||[],id=`aa-${pi}-${mi}-${oi}-${xi}`;
  const row=(a,ai)=>{const ab=ib+'.alts.'+ai,nl=(l,k)=>`<label class="nl"><span>${l}</span>${inp(ab+'.'+k,a[k]||0,'0','number')}</label>`,d=k=>{const v=rnd(num(a[k])-num(x[k]));return (v>0?'+':'')+v};
