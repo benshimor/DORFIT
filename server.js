@@ -36,9 +36,17 @@ const checks = {
   name: x => str(x, 80) && x.trim().length > 0, status: x => ['פעיל', 'מושהה', 'ארכיון'].includes(x), goal: x => num(x) && x >= 500 && x <= 10000,
   block: x => obj(x) && str(x.n, 60) && num(x.w) && num(x.of), coachNote: x => str(x, 2000), progs: x => Array.isArray(x) && x.every(i => str(i, 40)), plan: x => x === null || str(x, 40)
 };
+// strip angle brackets from every string (and key) a client sends, so stored text can never become markup in another user's screen
+const clean = (v, d = 0) => {
+  if (typeof v === 'string') return v.replace(/[<>]/g, '');
+  if (d > 14) return null;
+  if (Array.isArray(v)) return v.map(x => clean(x, d + 1));
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) { if (k === '__proto__') continue; o[k.replace(/[<>]/g, '')] = clean(v[k], d + 1); } return o; }
+  return v;
+};
 function pick(src, fields) {
   const out = {};
-  for (const k of fields) if (src[k] !== undefined) { if (!checks[k](src[k])) fail(400, 'ערך לא תקין: ' + k); out[k] = src[k]; }
+  for (const k of fields) if (src[k] !== undefined) { if (!checks[k](src[k])) fail(400, 'ערך לא תקין: ' + k); out[k] = clean(src[k]); }
   return out;
 }
 const outUser = r => ({ id: r.id, user: r.username, role: r.role === 'coach' ? 'c' : 't', ...J(r.data) });
@@ -273,7 +281,7 @@ app.post('/api/me/password', wrap((req, res) => {
 const USERNAME = /^[a-z0-9._-]{3,32}$/;
 app.post('/api/users', wrap((req, res) => {
   auth(req, 'coach');
-  const { name, user, pass } = req.body || {}, uname = String(user || '').trim().toLowerCase();
+  const { name: name0, user, pass } = req.body || {}, name = typeof name0 === 'string' ? clean(name0) : name0, uname = String(user || '').trim().toLowerCase();
   if (!str(name, 80) || !name.trim()) fail(400, 'חסר שם');
   if (!USERNAME.test(uname)) fail(400, 'שם משתמש: 3-32 תווים באנגלית, ספרות . _ -');
   if (typeof pass !== 'string' || pass.length < 6) fail(400, 'סיסמה: לפחות 6 תווים');
@@ -545,7 +553,7 @@ app.post('/api/intake/:token', wrap((req, res) => {
   const b = obj(req.body) ? req.body : {};
   if (b.website) return res.json({ ok: true });
   const o = {};
-  for (const k of Object.keys(IK)) { const v = typeof b[k] === 'string' ? b[k].replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, IK[k]) : ''; if (v) o[k] = v; }
+  for (const k of Object.keys(IK)) { const v = typeof b[k] === 'string' ? b[k].replace(/[\u0000-\u001f<>]/g, ' ').trim().slice(0, IK[k]) : ''; if (v) o[k] = v; }
   if (!o.name || !o.phone || !/^[\d+\-\s()]{7,20}$/.test(o.phone)) fail(400, 'נא למלא שם ומספר טלפון תקין');
   hits.push(now); intakeHits.set(ip, hits); if (intakeHits.size > 500) intakeHits.clear();
   db.prepare('insert into intake(id,ts,data) values(?,?,?)').run('i' + rid(8), now, JSON.stringify(o));
