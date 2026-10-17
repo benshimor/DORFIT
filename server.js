@@ -664,6 +664,41 @@ app.get('/api/exlib', wrap((req, res) => {
   res.set({ 'Content-Type': 'application/json; charset=utf-8', 'Content-Encoding': 'gzip', 'Cache-Control': 'private, no-cache' });
   res.sendFile(p);
 }));
+// exercise demo images: fetched once from GitHub, cached on the data volume and served from our own origin
+// (a school/ISP/kosher filter or a CDN hiccup used to leave an empty white square in the workout screen)
+const EXIDS = (() => { try { const p = [path.join(__dirname, 'exlib.json.gz'), path.join(__dirname, 'public', 'exlib.json.gz')].find(x => fs.existsSync(x)); return new Set(JSON.parse(zlib.gunzipSync(fs.readFileSync(p))).map(r => r[3])); } catch { return new Set(); } })();
+const EXIMG_DIR = path.join(path.dirname(DB_PATH), 'eximg'), exFetching = new Map();
+async function exGet(id, n) {
+  const f = path.join(EXIMG_DIR, id.replace(/[^\w.-]/g, '_') + '__' + n + '.jpg');
+  if (fs.existsSync(f)) return f;
+  if (exFetching.has(f)) return exFetching.get(f);
+  const e = encodeURIComponent(id);
+  const pr = (async () => {
+    for (const url of ['https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/' + e + '/' + n + '.jpg', 'https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/' + e + '/' + n + '.jpg']) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) continue;
+        const buf = Buffer.from(await r.arrayBuffer());
+        if (buf.length < 500 || buf[0] !== 0xFF || buf[1] !== 0xD8) continue;
+        fs.mkdirSync(EXIMG_DIR, { recursive: true });
+        fs.writeFileSync(f + '.tmp', buf); fs.renameSync(f + '.tmp', f);
+        return f;
+      } catch { /* try next source */ }
+    }
+    return null;
+  })().finally(() => exFetching.delete(f));
+  exFetching.set(f, pr);
+  return pr;
+}
+app.get('/api/eximg/:id/:n', wrap(async (req, res) => {
+  auth(req);
+  const id = String(req.params.id), n = req.params.n === '1' ? 1 : 0;
+  if (!EXIDS.has(id)) fail(404, 'לא נמצא');
+  const f = await exGet(id, n);
+  if (!f) fail(404, 'לא נמצא');
+  res.set({ 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=2592000', 'X-Content-Type-Options': 'nosniff' });
+  res.sendFile(f);
+}));
 let BCS = null;
 const offCache = new Map();
 const gtinOk = c => { if (!/^\d+$/.test(c) || ![8, 12, 13, 14].includes(c.length)) return false; const d = [...c].reverse().map(Number); let t = 0; d.forEach((x, i) => { if (i) t += x * (i % 2 ? 3 : 1); }); return (10 - t % 10) % 10 === d[0]; };
