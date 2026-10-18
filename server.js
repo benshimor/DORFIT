@@ -115,7 +115,7 @@ function sendText(req, res, p, type) {
 app.use((req, res, next) => {
   res.set({
     'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'same-origin',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self'; frame-ancestors 'none'"
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://cdn.jsdelivr.net https://raw.githubusercontent.com; connect-src 'self'; frame-ancestors 'none'"
   });
   if (PROD && req.headers['x-forwarded-proto'] === 'http') return res.redirect(301, 'https://' + req.headers.host + req.url);
   next();
@@ -342,7 +342,7 @@ app.put('/api/library', wrap((req, res) => {
   if (exs !== undefined) {
     if (!Array.isArray(exs) || exs.length > 1000 || !exs.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
-    cleanEx = exs.map(d => ({ id: d.id, n: d.n, g: t(d.g, 30), sets: Math.max(0, Math.min(20, Number(d.sets) || 0)), rep: t(String(d.rep == null ? '' : d.rep), 20), rest: Math.max(0, Math.min(900, Number(d.rest) || 0)), tip: t(d.tip, 500), video: t(d.video, 300) }));
+    cleanEx = exs.map(d => ({ id: d.id, n: d.n, g: t(d.g, 30), sets: Math.max(0, Math.min(20, Number(d.sets) || 0)), rep: t(String(d.rep == null ? '' : d.rep), 20), rest: Math.max(0, Math.min(900, Number(d.rest) || 0)), tip: t(d.tip, 500), video: t(d.video, 300), xid: t(d.xid, 80) }));
   }
   let cleanMs = null;
   if (msgs !== undefined) {
@@ -683,7 +683,7 @@ async function exGet(id, n) {
         fs.mkdirSync(EXIMG_DIR, { recursive: true });
         fs.writeFileSync(f + '.tmp', buf); fs.renameSync(f + '.tmp', f);
         return f;
-      } catch { /* try next source */ }
+      } catch (er) { console.log('[eximg] fetch failed', id, er.message); }
     }
     return null;
   })().finally(() => exFetching.delete(f));
