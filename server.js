@@ -23,13 +23,23 @@ const J = s => { try { return JSON.parse(s); } catch { return {}; } };
 const num = x => typeof x === 'number' && isFinite(x);
 const str = (x, n) => typeof x === 'string' && x.length <= n;
 const obj = x => x && typeof x === 'object' && !Array.isArray(x);
+// ids end up inside inline onclick="f('<id>')" handlers in the web app, so only allow characters that cannot break out of a quoted string
+// generous caps (real data today is under 30KB per user): they only stop runaway or abusive uploads
+const arrMax = n => x => Array.isArray(x) && x.length <= n;
+const objMax = n => x => obj(x) && Object.keys(x).length <= n;
+const objSmall = x => x === null || (obj(x) && JSON.stringify(x).length < 200000);
+const USER_MAX_BYTES = 3e6;
+const ID_RE = /^[A-Za-z0-9_.:-]{1,40}$/;
+const safeId = x => typeof x === 'string' && ID_RE.test(x);
+// every string "id" anywhere inside a document (days, exercises, meals...) must be a safe id
+const idsOk = (v, d = 0) => d > 8 ? true : Array.isArray(v) ? v.every(x => idsOk(x, d + 1)) : obj(v) ? Object.keys(v).every(k => (k !== 'id' || typeof v[k] !== 'string' || ID_RE.test(v[k])) && idsOk(v[k], d + 1)) : true;
 const fail = (status, msg) => { const e = new Error(msg); e.status = status; throw e; };
 
 const TF = ['water', 'ms', 'hist', 'cur', 'act', 'last', 'log', 'pr', 'chk', 'weights', 'checkin', 'lastDone', 'daily', 'day', 'reqs', 'steps', 'meas', 'cia', 'rtime', 'remOff', 'hs', 'rf']; // trainee-owned
 const CF = ['name', 'status', 'goal', 'block', 'coachNote', 'progs', 'plan', 'sgoal', 'cif', 'supp', 'cardio', 'phone', 'remT', 'sub', 'intk'];                                                          // coach-owned
 const checks = {
-  water: num, ms: Array.isArray, hist: obj, cur: obj, act: x => x === null || obj(x), last: x => x === null || obj(x), log: Array.isArray,
-  pr: obj, chk: Array.isArray, weights: Array.isArray, checkin: x => x === null || obj(x), lastDone: x => x === null || obj(x), daily: obj, day: x => str(x, 12), reqs: Array.isArray, steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20), sub: x => obj(x) && JSON.stringify(x).length < 2000, remT: x => str(x, 5) && (x === '' || /^\d\d:\d\d$/.test(x)),
+  water: num, ms: arrMax(100), hist: objMax(5000), cur: objMax(500), act: objSmall, last: objSmall, log: arrMax(5000),
+  pr: objMax(5000), chk: arrMax(2000), weights: arrMax(5000), checkin: objSmall, lastDone: objSmall, daily: objMax(5000), day: x => str(x, 12), reqs: arrMax(500), steps: x => num(x) && x >= 0 && x <= 200000, sgoal: x => num(x) && x >= 1000 && x <= 60000, cif: x => num(x) && x >= 0 && x <= 60, meas: x => Array.isArray(x) && x.length <= 400, cia: x => str(x, 12), rtime: x => str(x, 5) && /^\d\d:\d\d$/.test(x), remOff: x => typeof x === 'boolean', supp: x => str(x, 4000), cardio: x => str(x, 4000), phone: x => str(x, 20), sub: x => obj(x) && JSON.stringify(x).length < 2000, remT: x => str(x, 5) && (x === '' || /^\d\d:\d\d$/.test(x)),
   rf: x => Array.isArray(x) && x.length <= 60,
   intk: x => x === null || (obj(x) && Object.keys(x).length <= 24 && Object.values(x).every(v => typeof v === 'string' && v.length <= 700)),
   hs: x => x === null || (obj(x) && str(x.d, 12) && num(x.h) && x.h >= 0 && x.h <= 24),
@@ -135,16 +145,23 @@ app.use('/api', (req, res, next) => {
 });
 const auth = (req, role) => { if (!req.user) fail(401, 'לא מחובר'); if (role && req.user.role !== role) fail(403, 'אין הרשאה'); };
 
-const tries = new Map();
+const tries = new Map(), TRY_WIN = 10 * 60e3;
+// failed-login counter for a key (an IP, or "u:<username>"); the counter restarts 10 minutes after its first failure
+const tryOf = k => { const now = Date.now(); let t = tries.get(k); if (!t || now - t.t > TRY_WIN) { if (tries.size > 10000) tries.clear(); t = { n: 0, t: now }; tries.set(k, t); } return t; };
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, t] of tries) if (now - t.t > TRY_WIN) tries.delete(k);
+  db.prepare('delete from sessions where exp<?').run(now);
+}, 10 * 60e3).unref();
 app.post('/api/login', wrap((req, res) => {
-  const ip = req.ip, t = tries.get(ip) || { n: 0, t: Date.now() };
-  if (Date.now() - t.t > 10 * 60e3) { t.n = 0; t.t = Date.now(); }
-  if (t.n >= 10) fail(429, 'יותר מדי ניסיונות');
   const { user, pass } = req.body || {};
+  const ip = req.ip, uk = typeof user === 'string' ? 'u:' + user.trim().toLowerCase().slice(0, 64) : null;
+  const t = tryOf(ip), ut = uk ? tryOf(uk) : null;
+  if (t.n >= 10 || (ut && ut.n >= 30)) fail(429, 'יותר מדי ניסיונות');
   const u = typeof user === 'string' && typeof pass === 'string' ? db.prepare('select * from users where username=?').get(user.trim().toLowerCase()) : null;
   const ok = u && verify(pass, u.pass) && J(u.data).status !== 'ארכיון';
-  if (!ok) { t.n++; tries.set(ip, t); fail(401, 'שם משתמש או סיסמה שגויים'); }
-  tries.delete(ip);
+  if (!ok) { t.n++; if (ut) ut.n++; fail(401, 'שם משתמש או סיסמה שגויים'); }
+  tries.delete(ip); if (uk) tries.delete(uk);
   const token = crypto.randomBytes(32).toString('hex'), days = 30;
   db.prepare('insert into sessions(token,user_id,exp) values(?,?,?)').run(token, u.id, Date.now() + days * 864e5);
   db.prepare('delete from sessions where exp<?').run(Date.now());
@@ -230,8 +247,9 @@ app.get('/api/state', wrap((req, res) => {
 
 app.put('/api/me', wrap((req, res) => {
   auth(req, 'trainee');
-  const data = { ...J(req.user.data), ...pick(req.body || {}, TF) };
-  db.prepare('update users set data=? where id=?').run(JSON.stringify(data), req.user.id);
+  const data = { ...J(req.user.data), ...pick(req.body || {}, TF) }, json = JSON.stringify(data);
+  if (json.length > USER_MAX_BYTES) fail(413, 'הנתונים גדולים מדי');
+  db.prepare('update users set data=? where id=?').run(json, req.user.id);
   res.json({ ok: true });
 }));
 
@@ -336,17 +354,17 @@ app.delete('/api/users/:id', wrap((req, res) => {
 app.put('/api/library', wrap((req, res) => {
   auth(req, 'coach');
   const { progs, plans, exs, foods, msgs, rcps } = req.body || {};
-  const valid = (a, key) => Array.isArray(a) && a.length < 1000 && a.every(d => obj(d) && str(d.id, 40) && str(d.name, 120) && Array.isArray(d[key]));
+  const valid = (a, key) => Array.isArray(a) && a.length < 1000 && a.every(d => obj(d) && safeId(d.id) && idsOk(d) && str(d.name, 120) && Array.isArray(d[key]));
   if (!valid(progs, 'days') || !valid(plans, 'meals')) fail(400, 'נתונים לא תקינים');
   let cleanEx = null;
   if (exs !== undefined) {
-    if (!Array.isArray(exs) || exs.length > 1000 || !exs.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
+    if (!Array.isArray(exs) || exs.length > 1000 || !exs.every(d => obj(d) && safeId(d.id) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
     cleanEx = exs.map(d => ({ id: d.id, n: d.n, g: t(d.g, 30), sets: Math.max(0, Math.min(20, Number(d.sets) || 0)), rep: t(String(d.rep == null ? '' : d.rep), 20), rest: Math.max(0, Math.min(900, Number(d.rest) || 0)), tip: t(d.tip, 500), video: t(d.video, 300), xid: t(d.xid, 80) }));
   }
   let cleanMs = null;
   if (msgs !== undefined) {
-    if (!Array.isArray(msgs) || msgs.length > 60 || !msgs.every(d => obj(d) && str(d.id, 40))) fail(400, 'נתונים לא תקינים');
+    if (!Array.isArray(msgs) || msgs.length > 60 || !msgs.every(d => obj(d) && safeId(d.id))) fail(400, 'נתונים לא תקינים');
     const t = (v, m) => (typeof v === 'string' ? v.slice(0, m) : '');
     cleanMs = msgs.map(d => ({ id: d.id, n: t(d.n, 40), t: t(d.t, 600) }));
   }
@@ -358,7 +376,7 @@ app.put('/api/library', wrap((req, res) => {
   }
   let cleanFd = null;
   if (foods !== undefined) {
-    if (!Array.isArray(foods) || foods.length > 2000 || !foods.every(d => obj(d) && str(d.id, 40) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
+    if (!Array.isArray(foods) || foods.length > 2000 || !foods.every(d => obj(d) && safeId(d.id) && str(d.n, 120))) fail(400, 'נתונים לא תקינים');
     const m = x => Math.max(0, Math.min(5000, Math.round((Number(x) || 0) * 10) / 10));
     cleanFd = foods.map(d => ({ id: d.id, n: d.n, q: typeof d.q === 'string' ? d.q.slice(0, 30) : '', k: m(d.k), p: m(d.p), c: m(d.c), f: m(d.f), b: d.b === 'g' ? 'g' : 's', cat: typeof d.cat === 'string' ? d.cat.slice(0, 30) : '', pu: typeof d.pu === 'string' ? d.pu.slice(0, 30) : '', bc: /^\d{8,14}$/.test(String(d.bc || '')) ? String(d.bc) : '', u: Array.isArray(d.u) ? d.u.filter(x => obj(x) && str(x.n, 30) && num(x.g) && x.g > 0 && x.g <= 5000).slice(0, 12).map(x => ({ n: x.n, g: Math.round(x.g * 10) / 10 })) : [] }));
   }
