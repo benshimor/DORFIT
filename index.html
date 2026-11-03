@@ -263,6 +263,16 @@ details>.body{animation:fin .25s ease}
 .vN .mb{font-size:12.5px;color:var(--mut)}.vN .mb b{color:var(--ink);font-weight:600}.vN .mb i{font-style:normal;font-weight:400;font-size:11px;color:var(--mut)}.vN .bar{height:6px;border-radius:9px;background:rgba(255,255,255,.07);margin-top:5px;overflow:hidden}.vN .bar span{display:block;height:100%;border-radius:9px}
 .vN .gh{background:var(--s2);color:var(--ink);border-radius:14px;padding:11px 16px}.vN .lst{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.vN .lst div{background:var(--s2);border-radius:16px;padding:10px;display:grid;gap:2px;text-align:center}.vN .lst b{font-size:16px}
 .vN button.p{background:linear-gradient(135deg,var(--a2),var(--a1));box-shadow:0 8px 24px color-mix(in srgb,var(--a1) 35%,transparent)}.vN .hs input{background:var(--s2)}
+.tH{padding-top:14px!important}.tring{position:relative;width:56px;height:56px;flex:none;display:grid;place-items:center}.tring svg{position:absolute;inset:0;filter:drop-shadow(0 0 8px color-mix(in srgb,var(--a1) 40%,transparent))}.tring b{font-size:15px;position:relative;font-variant-numeric:tabular-nums}.tring i{font-style:normal;font-size:10px;color:var(--mut);font-weight:400}
+.tbar{height:5px;border-radius:9px;background:var(--s2);margin-top:14px;overflow:hidden}.tbar span{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,var(--a2),var(--a1));transition:width .4s}
+.chk{width:34px;height:34px;transition:.2s}.chk.on{background:var(--a1);border-color:var(--a1);color:var(--onacc);font-weight:800;box-shadow:none}
+.fw{display:flex;align-items:center;gap:4px;min-width:0}.fw input{flex:1;min-width:0}.fb{flex:none;min-width:26px;height:26px;padding:0 6px;border-radius:99px;font-size:10.5px;font-weight:700;line-height:26px;background:var(--chip);color:var(--a1);box-shadow:none;border:0}.fb:active{background:var(--a1);color:var(--onacc)}.fw input:not(:placeholder-shown)~.fb{visibility:hidden}
+.set.hd span:nth-child(2),.set .prev{display:none}.set.hd,.set{grid-template-columns:20px 1fr 1fr 1fr 34px;gap:6px}.set{margin-bottom:8px}.set input{height:46px;font-size:19px;font-weight:600;border-radius:14px;background:var(--s2);border:0;padding:0 2px}.set input::placeholder{opacity:0}.set.hd{font-size:11px;letter-spacing:.5px;text-align:center;margin-bottom:4px}.set.done input{background:color-mix(in srgb,var(--a1) 13%,var(--s2));color:var(--a1)}.ex{border-radius:24px}
+.set input[type=number]{-moz-appearance:textfield;appearance:textfield}.set input::-webkit-inner-spin-button,.set input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#tour{position:fixed;inset:0;z-index:9999;font-family:inherit}#tHl{position:absolute;box-shadow:0 0 0 100vmax rgba(3,7,18,.82);border:2px solid var(--a1);transition:all .35s cubic-bezier(.22,1,.36,1);pointer-events:none}
+#tCd{position:absolute;width:min(340px,calc(100vw - 28px));background:linear-gradient(165deg,color-mix(in srgb,var(--a1) 14%,var(--card)),var(--card));border:1px solid color-mix(in srgb,var(--a1) 35%,var(--line));border-radius:24px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.5);transition:top .35s cubic-bezier(.22,1,.36,1);animation:fin .3s ease}
+#tCd h3{margin:0 0 6px;font-size:19px}#tCd p{margin:0 0 14px;color:var(--ink);opacity:.85;line-height:1.65;font-size:14.5px}.tEm{font-size:34px;margin-bottom:4px}.tNo{font-size:11.5px;color:var(--a1);font-weight:700;margin-bottom:4px;letter-spacing:.4px}
+.tDots{display:flex;gap:5px;justify-content:center;margin-bottom:14px}.tDots i{width:6px;height:6px;border-radius:9px;background:var(--s2)}.tDots i.on{width:18px;background:var(--a1)}.tBt{display:flex;gap:8px;justify-content:space-between}.tBt button{flex:1;padding:12px}.tBt .g{flex:none;padding:12px 16px}
 </style>
 </head>
 <body>
@@ -547,14 +557,18 @@ function altSheet(u,pl){const [i,j]=altS,o=optOf(u,i),x=o.items&&o.items[j];if(!
 const rmFood=(i,j,on)=>{const s=msOf(me(),i);s.rm=s.rm||{};if(on)s.rm[j]=1;else if(j<0)s.rm={};else delete s.rm[j];save();render()};
 const pick=(i,j)=>{const s=msOf(me(),i);if(s.c!==j){s.c=j;s.a={};s.rm={}}save();render()};
 
+const repTop=r=>{const m=String(r==null?'':r).match(/\d+/g);return m?m[m.length-1]:''};
+const rirTgt=(sets,j)=>{for(let i=j-1;i>=0;i--){if(!sets[i].wu&&String(sets[i].x)!=='')return sets[i].x}return '2'};
+const fbtn=(did,eid,j,k,t,cur)=>(t===''||t==null||String(cur)!=='')?'':`<button type="button" class="fb" tabindex="-1" aria-label="הזן ${t}" onclick="fillV(this,'${did}','${eid}',${j},'${k}','${t}')">${t}</button>`;
+function fillV(b,did,eid,j,k,v){const i=b.parentNode.querySelector('input');i.value=v;sq(did,eid,j,k,v);b.style.visibility='hidden'}
 function exCard(u,d,o){const e=o.e,l=getLog(u,d.id,e),h=(u.hist[d.id]||{})[e.id]||[],isO=OPN.has(e.id),dn=l.sets.filter(s=>s.d&&!s.wu).length,sg=sugg(u,d.id,e),nw=l.sets.filter(s=>!s.wu).length;
  return `<div class="ex" id="ex-${e.id}"><div class="exh" role="button" tabindex="0" onclick="togO('${e.id}')">${exAnim(e.n,'',e.xid)||`<a class="th" ${e.video?`href="${e.video}" target="_blank" rel="noopener"`:''} onclick="event.stopPropagation()" aria-label="סרטון הדגמה">▶</a>`}
  <div style="flex:1;min-width:0"><div class="row" style="gap:8px"><span class="lb">${o.label}</span><b>${e.n}</b></div><div class="mut" style="margin-top:4px">${e.sets} סטים · ${e.rep} · מנוחה ${fmtR(e.rest)}${dn?` · <span style="color:var(--ok)">${dn}/${nw} בוצעו</span>`:''}</div></div><button class="ib" aria-label="היסטוריית משקלים" onclick="event.stopPropagation();openHist('${u.id}',${JSON.stringify(e.n).replace(/"/g,'&quot;')})">${nIc.hs}</button>${hasAlts(u,d,e)?`<button class="ib ${e.swapped?'on':''}" aria-label="החלפת תרגיל" onclick="event.stopPropagation();openSwap('${e.id}')">${nIc.sw}</button>`:''}<span class="mut">${isO?'⌃':'⌄'}</span></div>
  ${isO?`<div style="margin-top:14px">${swapBox(u,d,e)}${e.tip?`<div class="tip">${e.tip}</div>`:''}${sg&&l.sets.some(x=>!x.wu&&!x.d&&String(x.w)!==String(sg.w))?`<div class="sg">💡 עברת את ${sg.rm} החזרות בכל הסטים עם ${sg.from} ק״ג. הגיע הזמן לנסות ${sg.w} ק״ג <button class="p" style="padding:6px 12px;margin-inline-start:8px" onclick="useSug('${d.id}','${e.id}',${sg.w})">השתמש</button></div>`:''}${h.length?`<div class="mut" style="margin-bottom:10px">המספרים באפור הם האימון הקודם. המטרה: לעבור אותם 🏆</div>`:''}<div class="set hd"><span>#</span><span>קודם</span><span>ק״ג</span><span>חזרות</span><span>RIR</span><span></span></div>
  ${(()=>{let wi=-1;return l.sets.map((s,j)=>{if(!s.wu)wi++;const pv=s.wu?null:h[wi];return `<div class="set ${s.d?'done':''} ${s.wu?'wu':''}"><span class="mut">${s.wu?'ח':s.pr?'🏆':wi+1}</span><span class="prev">${pv?pv[0]+'×'+pv[1]:'—'}</span>
- <input type="number" inputmode="decimal" enterkeyhint="next" placeholder="${pv?pv[0]:''}" value="${s.w}" onchange="sq('${d.id}','${e.id}',${j},'w',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="משקל">
- <input type="number" inputmode="numeric" enterkeyhint="next" placeholder="${pv?pv[1]:''}" value="${s.r}" onchange="sq('${d.id}','${e.id}',${j},'r',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="חזרות">
- <input type="number" inputmode="numeric" enterkeyhint="done" min="0" max="10" placeholder="0-4" value="${s.x}" onchange="sq('${d.id}','${e.id}',${j},'x',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="RIR - חזרות בעתודה">
+ <span class="fw"><input type="number" inputmode="decimal" enterkeyhint="next" placeholder="${pv?pv[0]:' '}" value="${s.w}" onchange="sq('${d.id}','${e.id}',${j},'w',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="משקל">${fbtn(d.id,e.id,j,'w',(pv?pv[0]:sg?sg.w:''),s.w)}</span>
+ <span class="fw"><input type="number" inputmode="numeric" enterkeyhint="next" placeholder="${pv?pv[1]:' '}" value="${s.r}" onchange="sq('${d.id}','${e.id}',${j},'r',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="חזרות">${fbtn(d.id,e.id,j,'r',(pv?pv[1]:repTop(e.rep)),s.r)}</span>
+ <span class="fw"><input type="number" inputmode="numeric" enterkeyhint="done" min="0" max="10" placeholder="0-4" value="${s.x}" onchange="sq('${d.id}','${e.id}',${j},'x',this.value)" onkeydown="sEnter(event,this,'${d.id}','${e.id}',${j})" aria-label="RIR - חזרות בעתודה">${fbtn(d.id,e.id,j,'x',rirTgt(l.sets,j),s.x)}</span>
  <button class="chk ${s.d?'on':''}" onclick="doneSet('${d.id}','${e.id}',${j},${e.rest})" aria-label="סט הושלם">${s.d?'✓':''}</button></div>`}).join('')})()}
  <div class="row wr"><button class="g" onclick="addWarm('${d.id}','${e.id}')">+ סט חימום</button>${l.sets.some(x=>x.wu)?`<button class="g" onclick="rmWarm('${d.id}','${e.id}')">הסר חימום</button>`:''}<button class="g" onclick="addSet('${d.id}','${e.id}')">+ הוסף סט</button></div>
  <textarea rows="2" placeholder="הערה למאמן (כאב, קושי, תחושה)" onchange="getLog(me(),'${d.id}',{id:'${e.id}'}).note=this.value;save()" style="margin-top:6px">${l.note}</textarea></div>`:''}</div>`}
@@ -584,7 +598,8 @@ function exPrev(u,d,o){const e=o.e,h=(u.hist[d.id]||{})[e.id]||[];
 function sess(u){const a=u.act,p=progOf(a.pid),d0=p&&p.days.find(x=>x.id===a.did);if(!d0){u.act=null;save();return train(u)}const d=effDay(u,d0);
  if(fin)return summary(u,p,d);
  let html='',gs=groups(d);for(let i=0;i<gs.length;){const o=gs[i];if(o.size>1){html+=`<div class="ss"><span class="tag">Superset</span>${gs.slice(i,i+o.size).map(x=>exCard(u,d,x)).join('')}</div>`;i+=o.size}else{html+=stWrap(o.e,exCard(u,d,o),1);i++}}
- return `<div class="head" style="padding-bottom:14px"><div class="row sp"><div><div class="t1">${d.name}</div><div class="mut">${p.name} · סטים ${sp(u,d)} · נפח ${dayVol(u,d.id).toLocaleString()} ק״ג</div></div><div style="text-align:end"><b id="el" class="elc" style="font-size:22px;font-variant-numeric:tabular-nums">${elapsed(a)}</b><div class="mut">זמן אימון</div></div></div></div>
+ const [sda,sdb]=sp(u,d).split('/').map(Number),spr=sdb?sda/sdb:0,rC=2*Math.PI*23;
+ return `<div class="head tH" style="padding-bottom:14px"><div class="row sp"><div class="row" style="gap:12px;min-width:0"><div class="tring"><svg width="56" height="56" viewBox="0 0 56 56"><defs><linearGradient id="gT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--a2)"/><stop offset="1" style="stop-color:var(--a1)"/></linearGradient></defs><circle cx="28" cy="28" r="23" fill="none" stroke="var(--s2)" stroke-width="5"/><circle cx="28" cy="28" r="23" fill="none" stroke="url(#gT)" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(rC*spr).toFixed(1)} ${rC.toFixed(1)}" transform="rotate(-90 28 28)"/></svg><b>${sda}<i>/${sdb}</i></b></div><div style="min-width:0"><div class="t1">${d.name}</div><div class="mut">${p.name} · נפח ${dayVol(u,d.id).toLocaleString()} ק״ג</div></div></div><div style="text-align:end"><b id="el" class="elc" style="font-size:22px;font-variant-numeric:tabular-nums">${elapsed(a)}</b><div class="mut">זמן אימון</div></div></div><div class="tbar"><span style="width:${Math.round(spr*100)}%"></span></div></div>
  ${d.note?`<div class="cnote" role="note"><div class="cnh"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 00-6 6c0 3-1.5 4-2 5h16c-.5-1-2-2-2-5a6 6 0 00-6-6zM10 18a2 2 0 004 0"/></svg>הערת המאמן לאימון</div><div class="cnb">${esc(d.note)}</div></div>`:''}${html}<div style="text-align:center"><button class="x" onclick="cancelAct()">ביטול האימון</button></div>
  <div style="margin:22px 0 8px"><button class="p" style="display:block;width:100%;padding:15px;font-size:17px;border-radius:16px" onclick="fin=true;render()">סיים אימון</button></div>
  <div class="etm ${(window.scrollY||0)>80?'on':''}" id="etm" aria-hidden="true">⏱ <b class="elc">${elapsed(a)}</b></div>`}
@@ -967,7 +982,7 @@ function settings(){const a=bkAge(),me_=me();
  <div class="card"><h2>חשבון</h2><div class="srow"><span class="av">${me_.name.trim()[0]}</span><div><b>${me_.name}</b><span class="mut">שם משתמש: ${me_.user} · מאמן</span></div></div></div>
  ${themeCard()}${pwCard(8)}
  <div class="card"><h2>גיבוי נתונים</h2><div class="mut" style="font-size:13px;margin-bottom:10px">השרת שומר גיבוי אוטומטי כל לילה (14 ימים אחרונים). כאן אפשר להוריד עותק משלך, למשל פעם בשבוע.</div><div class="srow"><div><b>הורדת גיבוי</b><span class="mut">${a===null?'עוד לא הורדת גיבוי מהמכשיר הזה':a===0?'הורדת גיבוי היום ✓':'הגיבוי האחרון שהורדת: לפני '+a+(a===1?' יום':' ימים')}</span></div><a class="p" style="padding:10px 16px;border-radius:12px;text-decoration:none;color:#fff;background:var(--acc);flex:none" href="/api/backup/db" download onclick="bkDone()">הורד</a></div><div class="srow"><div><b>ייצוא לקריאה (JSON)</b><span class="mut">קובץ טקסט עם כל הנתונים, לבדיקה או העברה</span></div><a class="g" style="padding:10px 16px;border-radius:12px;text-decoration:none;color:var(--ink);border:1px solid var(--line);flex:none" href="/api/export" download onclick="bkDone()">ייצוא</a></div></div>
- <div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית. נפתח כמו אפליקציה</span></div>${isNat()||isStandalone()?'':'<button class="p" onclick="instShow()">הוראות</button>'}</div><div class="srow"><div><b>טיפים</b><span class="mut">הצג מחדש את הטיפים הקצרים בכל עמוד</span></div><button class="g" onclick="tipsReset()">הצג</button></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
+ <div class="card"><h2>אפליקציה</h2><div class="srow"><div><b>התקנה על מסך הבית</b><span class="mut">בדפדפן: תפריט ← הוסף למסך הבית. נפתח כמו אפליקציה</span></div>${isNat()||isStandalone()?'':'<button class="p" onclick="instShow()">הוראות</button>'}</div><div class="srow"><div><b>סיור הדרכה</b><span class="mut">מעבר קצר על כל חלקי האפליקציה</span></div><button class="p" onclick="tourStart()">התחל</button></div><div class="srow"><div><b>טיפים</b><span class="mut">הצג מחדש את הטיפים הקצרים בכל עמוד</span></div><button class="g" onclick="tipsReset()">הצג</button></div><div class="srow"><div><b>יציאה מהחשבון</b></div><button class="g" onclick="out()">יציאה</button></div></div>`}
 
 /* ---------- smartwatch via Health Connect (Android app shell only) ---------- */
 const hp=()=>{try{return window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&Capacitor.Plugins&&Capacitor.Plugins.Health||null}catch(e){return null}};
@@ -1694,11 +1709,47 @@ function doRender(){const a=document.getElementById('app'),u=me(),f=document.act
  let sig='';try{sig=[u&&u.id,tab,ct,sel,pm,lm,dtab,typeof mo!=='undefined'?mo:'',splash,inst].join('|')}catch(e){}
  const same=sig===lastSig;let sb=[],sc=[];if(same){sb=[...a.querySelectorAll('.bar i')].map(e=>e.style.width);sc=[...a.querySelectorAll('svg circle[stroke-dasharray]')].map(e=>[e.getAttribute('stroke-dasharray'),e.getAttribute('stroke-dashoffset')])}
  a.innerHTML=splash?splashHtml():!u?login():u.role==='c'?coach():trainee(u);if(offline&&u)a.insertAdjacentHTML('beforeend','<div class="off" role="status">אין חיבור לשרת. השינויים נשמרים במכשיר ויישלחו כשהחיבור יחזור</div>');if(inst)a.insertAdjacentHTML('beforeend',instHtml());
- if(u&&!splash&&!inst){const k=tipKey(u);if(k&&TIPS[k]&&!tipSeen(k)){const w=a.querySelector('.wrap');if(w)w.insertAdjacentHTML('afterbegin',tipHtml(k))}}
+ if(u&&!splash&&!inst&&tourI<0){const k=tipKey(u);if(k&&TIPS[k]&&!tipSeen(k)){const w=a.querySelector('.wrap');if(w)w.insertAdjacentHTML('afterbegin',tipHtml(k))}}
  if(same){const nb=[...a.querySelectorAll('.bar i')];if(nb.length===sb.length)nb.forEach((e,i)=>{const w=e.style.width;if(sb[i]!==w){e.style.width=sb[i];void e.offsetWidth;e.style.width=w}});const nc=[...a.querySelectorAll('svg circle[stroke-dasharray]')];if(nc.length===sc.length)nc.forEach((e,i)=>{const d=e.getAttribute('stroke-dasharray'),o=e.getAttribute('stroke-dashoffset');if(sc[i][0]!==d||sc[i][1]!==o){e.setAttribute('stroke-dasharray',sc[i][0]);if(sc[i][1]!==null)e.setAttribute('stroke-dashoffset',sc[i][1]);void e.getBoundingClientRect();e.setAttribute('stroke-dasharray',d);if(o!==null)e.setAttribute('stroke-dashoffset',o)}})}
  else{a.classList.add('vin','rin');clearTimeout(vinT);vinT=setTimeout(()=>a.classList.remove('vin'),450);clearTimeout(rinT);rinT=setTimeout(()=>a.classList.remove('rin'),1100)}
+ if(u&&u.role==='t'&&!splash&&!inst&&tab==='home'&&tourI<0&&!tourSeen(u)&&!document.getElementById('tour'))setTimeout(()=>{if(tab==='home'&&tourI<0&&!tourSeen(me()))tourStart()},1200);
  {const hl=document.getElementById('hsl');if(hl&&hs0&&!same)hGo(hs0,1);else if(hl&&hs0)hGo(hs0,1)}
  lastSig=sig;if(f){const e=document.getElementById(f);if(e)e.focus()}else if(sf)setFocusBack(sf)}
+
+/* ---------- סיור הדרכה למתאמן ---------- */
+const tourSeen=u=>{try{return localStorage.getItem('dfTour:'+u.id)==='1'}catch(e){return true}};
+const tourMark=u=>{try{localStorage.setItem('dfTour:'+u.id,'1')}catch(e){}};
+const tbtn=k=>`.tabs button[onclick*="tab='${k}'"]`;
+const TOUR=[
+ {i:'👋',h:'ברוך הבא ל-DOR FIT',x:'סיור קצר של דקה שמראה איפה כל דבר נמצא. אפשר לדלג בכל שלב, ולחזור אליו מההגדרות.',go:"tab='home';render()"},
+ {t:'.hi-row',h:'ארבעה אזורים במסך הבית',x:'משקל, תזונה, אימון וצעדים. לחץ על אחד מהם, או החלק את הכרטיס הצידה, כדי לעבור ביניהם.',go:"tab='home';render()"},
+ {t:'#hsl',h:'משקל',x:'שוקלים כל בוקר אחרי שירותים ושומרים. הגרף מראה ממוצע שבועי, כי המשקל זז מיום ליום וזה בסדר גמור.',go:"tab='home';render();hGo(0,1)"},
+ {t:'#hsl',h:'תזונה',x:'הטבעת מראה כמה קלוריות נשארו להיום, ומתחתיה חלבון, פחמימות ושומן. אחרי שאכלת לוחצים "סמן ארוחה".',go:"tab='home';render();hGo(1,1)"},
+ {t:'#hsl',h:'אימון',x:'כאן האימון הבא שלך, וכמה אימונים עשית השבוע. "התחל אימון" פותח את האימון.',go:"tab='home';render();hGo(2,1)"},
+ {t:'#hsl',h:'צעדים',x:'גרף של 7 ימים מול היעד. עם "רשום צעדים" מעדכנים את הצעדים של היום.',go:"tab='home';render();hGo(3,1)"},
+ {t:tbtn('train'),h:'מסך האימון',x:'בוחרים יום ומתחילים. בכל סט מזינים משקל, חזרות ו-RIR. הכפתור הקטן ליד כל שדה ממלא לבד את היעד בלחיצה אחת, ו-✓ מסמן סט ומפעיל טיימר מנוחה.',go:"tab='train';render()"},
+ {t:tbtn('food'),h:'מסך התזונה',x:'מסמנים ארוחה שאכלת, מחליפים לאפשרות אחרת, ומוסיפים מאכל שאכלת מחוץ לתפריט. הקלוריות מתעדכנות לבד.',go:"tab='food';render()"},
+ {t:tbtn('cal'),h:'היומן',x:'כל יום בלוח: האימונים, המשקל והצ׳ק-אין. לחיצה על יום מציגה את הפרטים.',go:"tab='cal';render()"},
+ {t:tbtn('body'),h:'עוד',x:'שיאים אישיים, היקפים, תמונות התקדמות והגדרות. שם מפעילים גם התראות מנוחה.',go:"tab='body';mo=null;render()"},
+ {i:'💪',h:'זהו, אתה מוכן',x:'את הסיור אפשר להפעיל שוב בכל רגע: עוד ← הגדרות ← סיור הדרכה. בהצלחה באימון הראשון!',go:"tab='home';render()"}
+];
+let tourI=-1;
+function tourStart(){const u=me();if(!u||u.role!=='t')return;if(tourI>=0)return;tourI=0;tourShow()}
+function tourEnd(){const u=me();if(u)tourMark(u);tourI=-1;const e=document.getElementById('tour');if(e)e.remove();document.removeEventListener('keydown',tourKey);window.removeEventListener('resize',tourPos);tab='home';render()}
+function tourKey(e){if(e.key==='Escape')tourEnd();else if(e.key==='ArrowLeft'||e.key==='Enter')tourGo(1);else if(e.key==='ArrowRight')tourGo(-1)}
+function tourGo(d){const n=tourI+d;if(n<0)return;if(n>=TOUR.length)return tourEnd();tourI=n;tourShow()}
+function tourShow(){const st=TOUR[tourI];try{(0,eval)(st.go)}catch(e){}
+ let o=document.getElementById('tour');if(!o){o=document.createElement('div');o.id='tour';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.innerHTML='<div id="tHl"></div><div id="tCd"></div>';document.body.appendChild(o);document.addEventListener('keydown',tourKey);window.addEventListener('resize',tourPos)}
+ const last=tourI===TOUR.length-1;
+ document.getElementById('tCd').innerHTML=`${st.i?`<div class="tEm">${st.i}</div>`:`<div class="tNo">${tourI} מתוך ${TOUR.length-2}</div>`}<h3>${st.h}</h3><p>${st.x}</p><div class="tDots">${TOUR.map((_,k)=>`<i class="${k===tourI?'on':''}"></i>`).join('')}</div><div class="tBt">${tourI>0?'<button class="g" onclick="tourGo(-1)">הקודם</button>':'<button class="g" onclick="tourEnd()">דלג</button>'}<button class="p" onclick="tourGo(1)">${last?'סיום':tourI===0?'בוא נתחיל':'הבא'}</button></div>`;
+ setTimeout(tourPos,60);setTimeout(tourPos,380)}
+function tourPos(){if(tourI<0)return;const st=TOUR[tourI],hl=document.getElementById('tHl'),cd=document.getElementById('tCd');if(!hl||!cd)return;
+ const el=st.t?document.querySelector(st.t):null;
+ if(!el){hl.style.cssText='left:50%;top:50%;width:0;height:0;border-radius:0';cd.style.cssText='left:50%;top:50%;transform:translate(-50%,-50%)';return}
+ el.scrollIntoView({block:'nearest',inline:'nearest'});const r=el.getBoundingClientRect(),p=8,W=window.innerHeight;
+ hl.style.cssText=`left:${r.left-p}px;top:${r.top-p}px;width:${r.width+2*p}px;height:${r.height+2*p}px;border-radius:${Math.min(26,(r.height+2*p)/2)}px`;
+ const h=cd.offsetHeight,below=r.bottom+p+14+h<W-8;
+ cd.style.cssText=`left:50%;transform:translateX(-50%);top:${Math.max(10,below?r.bottom+p+14:r.top-p-14-h)}px`}
 boot();
 </script>
 </body>
